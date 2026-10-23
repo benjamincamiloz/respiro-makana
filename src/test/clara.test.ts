@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { statementContext } from "@/lib/clara";
+import { CLARA_SYSTEM, statementContext } from "@/lib/clara";
 
 describe("Clara statement context", () => {
   it("passes the selected statement's actual amounts rather than a fixed persona balance", () => {
