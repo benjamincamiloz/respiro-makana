@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Camera, FileText, Wind, Home as HomeIcon, Play, Pause, Eye, EyeOff,
-  ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, Pill, Shirt,
+  ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, Pill, Shirt, MessageCircle, Send,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -33,7 +33,7 @@ function calc(extra: number, c: Cartola) {
   return { days: Math.round(r * 140 - r * r * 8), saved: Math.round(extra * (c.debt / c.min) * 0.45) };
 }
 
-type Screen = "inicio" | "medidor";
+type Screen = "inicio" | "medidor" | "clara";
 
 function App() {
   const [screen, setScreen] = useState<Screen>("inicio");
@@ -319,3 +319,82 @@ function PausaSOS({ onClose }: { onClose: () => void }) {
   );
 }
 
+
+type Msg = { role: "user" | "assistant"; content: string };
+
+function getDevice() {
+  let id = localStorage.getItem("respiro-device");
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem("respiro-device", id); }
+  return id;
+}
+
+function ClaraChat() {
+  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    fetch(`/api/clara?device=${getDevice()}`).then((r) => r.json()).then((d) => Array.isArray(d) && setMsgs(d)).catch(() => {});
+    inputRef.current?.focus();
+  }, []);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
+
+  async function send(t: string) {
+    const v = t.trim(); if (!v || busy) return;
+    setText(""); setErr(null); setBusy(true);
+    setMsgs((m) => [...m, { role: "user", content: v }]);
+    try {
+      const res = await fetch("/api/clara", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ device: getDevice(), text: v }) });
+      if (!res.ok || !res.body) { const j = await res.json().catch(() => ({})); throw new Error(j.error || "Clara no pudo responder"); }
+      const reader = res.body.getReader(); const dec = new TextDecoder(); let acc = "";
+      setMsgs((m) => [...m, { role: "assistant", content: "" }]);
+      for (;;) {
+        const { done, value } = await reader.read(); if (done) break;
+        acc += dec.decode(value, { stream: true });
+        setMsgs((m) => [...m.slice(0, -1), { role: "assistant", content: acc }]);
+      }
+      if (!acc.trim()) throw new Error("Clara no pudo responder");
+    } catch (x) {
+      setMsgs((m) => (m.at(-1)?.role === "assistant" && !m.at(-1)?.content ? m.slice(0, -1) : m));
+      setErr(x instanceof Error ? x.message : "Clara no pudo responder");
+    } finally { setBusy(false); inputRef.current?.focus(); }
+  }
+
+  const ideas = ["Me llegó la cartola y me da susto abrirla", "Quiero comprarle zapatillas a mi nieto en 6 cuotas", "Esta semana vendí poco"];
+
+  return (
+    <section className="animate-rise flex min-h-[60vh] flex-col">
+      <div className="mb-4 flex items-center gap-3 rounded-3xl bg-card p-4 shadow-soft">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground font-display text-xl">C</div>
+        <p className="font-semibold">Clara<br /><span className="text-sm text-muted-foreground">Te acompaña, sin juzgarte</span></p>
+      </div>
+      <div className="flex-1 space-y-3">
+        {msgs.length === 0 && (
+          <div className="space-y-2">
+            <p className="rounded-3xl rounded-tl-md bg-accent p-4 text-accent-foreground">Hola Paty, aquí estoy. Cuéntame lo que te tenga inquieta, aunque sea chiquito.</p>
+            {ideas.map((i) => <button key={i} onClick={() => send(i)} className="block w-full rounded-2xl border bg-card px-4 py-3 text-left text-sm font-semibold">{i}</button>)}
+          </div>
+        )}
+        {msgs.map((m, i) => (
+          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex"}>
+            <p className={`max-w-[85%] whitespace-pre-wrap rounded-3xl p-4 ${m.role === "user" ? "rounded-tr-md bg-primary text-primary-foreground" : "rounded-tl-md bg-accent text-accent-foreground"}`}>
+              {m.content || "…"}
+            </p>
+          </div>
+        ))}
+        {busy && msgs.at(-1)?.role === "user" && <p className="w-fit rounded-3xl bg-accent px-4 py-3 text-accent-foreground">Clara está escribiendo…</p>}
+        {err && <p className="text-sm font-semibold text-warm">{err}</p>}
+        <div ref={endRef} />
+      </div>
+      <form onSubmit={(e) => { e.preventDefault(); send(text); }} className="sticky bottom-20 mt-4 flex items-end gap-2 rounded-3xl border bg-card p-2 shadow-soft">
+        <textarea ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} rows={1}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(text); } }}
+          placeholder="Escríbele a Clara…" className="max-h-32 flex-1 resize-none bg-transparent px-3 py-2 outline-none" />
+        <button disabled={busy || !text.trim()} aria-label="Enviar" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-50"><Send className="h-5 w-5" /></button>
+      </form>
+    </section>
+  );
+}
