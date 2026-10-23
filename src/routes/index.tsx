@@ -28,11 +28,7 @@ export const Route = createFileRoute("/")({
 const clp = (n: number) => "$" + Math.round(n).toLocaleString("es-CL");
 const SALE = 9000;
 
-type Cartola = { id: string; name: string; short: string; sub: string; debt: number; min: number; interest: number };
-const CARTOLAS: Cartola[] = [
-  { id: "ejemplo-tienda", name: "Ejemplo — Tarjeta de tienda", short: "tarjeta de tienda", sub: "Datos inventados, solo para ver cómo funciona", debt: 850000, min: 42500, interest: 26300 },
-  { id: "ejemplo-cuenta", name: "Ejemplo — Cuenta vista", short: "cuenta vista", sub: "Datos inventados, solo para ver cómo funciona", debt: 840000, min: 42000, interest: 25900 },
-];
+type Cartola = { id: string; name: string; short: string; debt: number; min: number; interest: number };
 
 function calc(extra: number, c: Cartola) {
   const r = extra / SALE; // ventas
@@ -222,16 +218,6 @@ function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara }: { mood: Mood
         </div>
       )}
 
-      <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">O elige una cartola de ejemplo</p>
-      <p className="text-xs text-muted-foreground">Ninguna de estas es tu cuenta: son datos ficticios para probar la app sin subir nada.</p>
-      {CARTOLAS.map((c) => (
-        <button key={c.id} onClick={() => onLoad(c)}
-          className="flex w-full items-center gap-3 rounded-3xl border-2 border-dashed border-secondary/40 bg-calm px-5 py-4 text-left font-bold text-calm-foreground transition active:scale-95">
-          <FileText className="h-6 w-6 shrink-0" />
-          <span>{c.name}<br /><span className="text-sm font-semibold opacity-80">{c.sub}</span></span>
-          <ArrowRight className="ml-auto h-5 w-5 shrink-0" />
-        </button>
-      ))}
     </section>
   );
 }
