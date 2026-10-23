@@ -295,7 +295,7 @@ function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: M
             : `Tu ${c.short} está al día y tu mamá está protegida. Vamos a ver cuánto aire le ganamos al banco este mes.`}</p>
       </div>
 
-      <VoiceNote text={`Hola Paty, soy Clara. Ya revisé tu cartola de ${c.short} por ti, para que no pases el mal rato sola. Respira tranquila: tu cuenta está al día y esto tiene arreglo. Debes ${clp(c.debt).replace("$", "")} pesos, y si pagas solo el mínimo de ${clp(c.min).replace("$", "")}, casi ${clp(c.interest).replace("$", "")} se van en intereses para el banco. Pero si esta semana sumas lo de un par de ventas del catálogo, empiezas a ganarle días de aire. Vamos paso a paso, yo te acompaño.`} />
+      <VoiceNote mood={mood} text={`${claraWelcome(mood)} ${mood === "agobiada" ? "Tu cartola puede esperar hasta que quieras mirarla." : `Cuando quieras, podemos revisar tu cartola de ${c.short}. El saldo informado es ${clp(c.debt).replace("$", "")} pesos y el pago mínimo es ${clp(c.min).replace("$", "")} pesos. Antes de pensar en pagar más, cuidemos lo que necesitas para la casa y los remedios. Vamos paso a paso.`}`} />
 
       <div className="rounded-3xl bg-card p-5 shadow-soft">
         <p className="font-extrabold">¿Cómo estuvieron tus ventas de catálogo esta semana?</p>
@@ -568,7 +568,7 @@ function Camino({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: Mo
 const audioCache = new Map<string, string>();
 let current: HTMLAudioElement | null = null;
 
-function useSpeech(text: string) {
+function useSpeech(text: string, mood: MoodId | null = null) {
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
   const [p, setP] = useState(0);
   const [err, setErr] = useState<string | null>(null);
@@ -579,12 +579,13 @@ function useSpeech(text: string) {
     if (state === "loading") return;
     setErr(null);
     try {
-      let url = audioCache.get(text);
+      const cacheKey = JSON.stringify([text, mood]);
+      let url = audioCache.get(cacheKey);
       if (!url) {
         setState("loading");
-        const res = await fetch("/api/voz", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+        const res = await fetch("/api/voz", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, mood }) });
         if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || "No pude generar la voz"); }
-        url = URL.createObjectURL(await res.blob()); audioCache.set(text, url);
+        url = URL.createObjectURL(await res.blob()); audioCache.set(cacheKey, url);
       }
       current?.pause();
       const a = ref.current && ref.current.src === url ? ref.current : new Audio(url);
@@ -598,8 +599,8 @@ function useSpeech(text: string) {
   return { state, p, err, toggle, time: ref.current ? Math.floor(ref.current.currentTime) : 0 };
 }
 
-function VoiceNote({ text }: { text: string }) {
-  const { state, p, err, toggle, time } = useSpeech(text);
+function VoiceNote({ text, mood }: { text: string; mood: MoodId | null }) {
+  const { state, p, err, toggle, time } = useSpeech(text, mood);
   const bars = [4, 9, 14, 7, 12, 18, 10, 6, 15, 11, 8, 16, 5, 12, 9, 14, 7, 10, 13, 6, 11, 8];
   return (
     <div className="rounded-3xl bg-calm p-4 text-calm-foreground">
@@ -623,8 +624,8 @@ function VoiceNote({ text }: { text: string }) {
   );
 }
 
-function SpeakButton({ text }: { text: string }) {
-  const { state, toggle, err } = useSpeech(text);
+function SpeakButton({ text, mood }: { text: string; mood: MoodId | null }) {
+  const { state, toggle, err } = useSpeech(text, mood);
   return (
     <button onClick={toggle} title={err ?? undefined} aria-label="Escuchar a Clara"
       className="mt-1 flex items-center gap-1 text-xs font-bold text-muted-foreground">
@@ -771,9 +772,12 @@ function ClaraChat({ mood, cartola, onPause, onPayments, onStatement }: { mood: 
         <Button variant="outline" onClick={onStatement}><FileText /> Mi cartola</Button>
       </div>
       <div className="flex-1 space-y-3">
+        <div className="space-y-1">
+          <p className="rounded-3xl rounded-tl-md bg-accent p-4 text-accent-foreground">{hello}</p>
+          <SpeakButton text={hello} mood={mood} />
+        </div>
         {msgs.length === 0 && (
           <div className="space-y-2">
-            <p className="rounded-3xl rounded-tl-md bg-accent p-4 text-accent-foreground">{hello}</p>
             {ideas.map((i) => <Button key={i} variant="outline" onClick={() => send(i)} disabled={busy} className="h-auto w-full justify-between whitespace-normal py-3 text-left">{i}<ArrowRight className="shrink-0" /></Button>)}
           </div>
         )}
@@ -782,7 +786,7 @@ function ClaraChat({ mood, cartola, onPause, onPayments, onStatement }: { mood: 
             <p className={`max-w-[85%] whitespace-pre-wrap rounded-3xl p-4 ${m.role === "user" ? "rounded-tr-md bg-primary text-primary-foreground" : "rounded-tl-md bg-accent text-accent-foreground"}`}>
               {m.content || "…"}
             </p>
-            {m.role === "assistant" && m.content && !(busy && i === msgs.length - 1) && <SpeakButton text={m.content} />}
+            {m.role === "assistant" && m.content && !(busy && i === msgs.length - 1) && <SpeakButton text={m.content} mood={mood} />}
           </div>
         ))}
         {busy && msgs.at(-1)?.role === "user" && <p className="w-fit rounded-3xl bg-accent px-4 py-3 text-accent-foreground">Clara está escribiendo…</p>}
