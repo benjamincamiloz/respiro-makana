@@ -42,8 +42,19 @@ function App() {
   const load = (c: Cartola) => { setCartola(c); setScreen("medidor"); };
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="mx-auto max-w-md px-5 pb-44 pt-8">
+    <div className="min-h-screen bg-surface">
+      <header className="sticky top-0 z-20 border-b bg-card/90 backdrop-blur">
+        <div className="mx-auto flex max-w-md items-center justify-between px-5 py-3">
+          <button onClick={() => setScreen("inicio")} className="flex items-center gap-2">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Wind className="h-5 w-5" /></span>
+            <span className="font-display text-xl text-secondary">Respiro</span>
+          </button>
+          <span className="flex items-center gap-1.5 rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-foreground">
+            <ShieldCheck className="h-3.5 w-3.5" /> Datos protegidos
+          </span>
+        </div>
+      </header>
+      <main className="mx-auto max-w-md px-5 pb-44 pt-6">
         {screen === "inicio" ? <Inicio onLoad={load} /> : <Medidor cartola={cartola} onLoad={load} />}
         <Evidencia />
       </main>
