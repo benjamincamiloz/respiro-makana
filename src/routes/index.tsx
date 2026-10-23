@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Camera, FileText, Wind, Home as HomeIcon, Play, Pause, Eye, EyeOff,
-  ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, BookOpen, Pill, Shirt,
+  ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, Pill, Shirt,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -56,7 +56,6 @@ function App() {
       </header>
       <main className="mx-auto max-w-md px-5 pb-44 pt-6">
         {screen === "inicio" ? <Inicio onLoad={load} /> : <Medidor cartola={cartola} onLoad={load} />}
-        <Evidencia />
       </main>
 
       <button onClick={() => setSos(true)}
@@ -75,10 +74,6 @@ function App() {
               <t.icon className="h-6 w-6" /> {t.label}
             </button>
           ))}
-          <button onClick={() => document.getElementById("evidencia")?.scrollIntoView({ behavior: "smooth" })}
-            className="flex flex-1 flex-col items-center gap-1 py-3 text-sm font-bold text-muted-foreground">
-            <BookOpen className="h-6 w-6" /> Evidencia
-          </button>
         </div>
       </nav>
 
@@ -309,16 +304,3 @@ function PausaSOS({ onClose }: { onClose: () => void }) {
   );
 }
 
-function Evidencia() {
-  const studies = [
-    { a: "Fernandes (2014)", d: "La educación financiera funciona mejor justo a tiempo, en el momento de decidir." },
-    { a: "Medina (2021)", d: "No forzar pagos que generen sobregiros: proteger la caja primero." },
-    { a: "USS-Equifax (2026)", d: "El endeudamiento de mujeres mayores se concentra en tarjetas de retail." },
-  ];
-  return (
-    <footer id="evidencia" className="mt-12 space-y-3 rounded-3xl bg-muted p-5">
-      <p className="flex items-center gap-2 font-extrabold"><BookOpen className="h-5 w-5 text-primary" /> Respaldado por evidencia</p>
-      {studies.map((s) => <p key={s.a} className="text-sm"><b>{s.a}:</b> {s.d}</p>)}
-    </footer>
-  );
-}
