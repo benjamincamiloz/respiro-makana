@@ -55,19 +55,20 @@ function App() {
         </div>
       </header>
       <main className="mx-auto max-w-md px-5 pb-44 pt-6">
-        {screen === "inicio" ? <Inicio onLoad={load} /> : <Medidor cartola={cartola} onLoad={load} />}
+        {screen === "inicio" ? <Inicio onLoad={load} /> : screen === "clara" ? <ClaraChat /> : <Medidor cartola={cartola} onLoad={load} />}
       </main>
 
-      <button onClick={() => setSos(true)}
+      {screen !== "clara" && <button onClick={() => setSos(true)}
         className="fixed bottom-24 left-1/2 z-20 flex w-[calc(100%-2.5rem)] max-w-sm -translate-x-1/2 items-center gap-3 rounded-full bg-warm px-5 py-3.5 text-left font-bold text-warm-foreground shadow-soft transition hover:scale-[1.02]">
         <Moon className="h-5 w-5 shrink-0" /> Pausa Nocturna (Tu momento libre)
-      </button>
+      </button>}
 
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t bg-card/95 backdrop-blur">
         <div className="mx-auto flex max-w-md">
           {[
             { id: "inicio" as const, label: "Inicio", icon: HomeIcon },
             { id: "medidor" as const, label: "Mi aire", icon: Wind },
+            { id: "clara" as const, label: "Clara", icon: MessageCircle },
           ].map((t) => (
             <button key={t.id} onClick={() => setScreen(t.id)}
               className={`flex flex-1 flex-col items-center gap-1 py-3 text-sm font-bold transition ${screen === t.id ? "text-primary" : "text-muted-foreground"}`}>
@@ -85,6 +86,7 @@ function App() {
 function Inicio({ onLoad }: { onLoad: (c: Cartola) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
   return (
     <section className="animate-rise space-y-6">
       <div className="flex items-center gap-3 rounded-3xl bg-card p-4 shadow-soft">
@@ -99,12 +101,25 @@ function Inicio({ onLoad }: { onLoad: (c: Cartola) => void }) {
       <p className="text-center text-muted-foreground">Sube tu cartola y yo me encargo de leerla. Tú solo verás lo que te da aire.</p>
 
       <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFileName(f.name); setTimeout(() => onLoad(CARTOLAS[0]!), 1200); } }} />
-      <button onClick={() => fileRef.current?.click()}
-        className="flex w-full items-center justify-center gap-3 rounded-3xl bg-primary px-6 py-6 text-xl font-extrabold text-primary-foreground shadow-soft transition active:scale-95">
-        <Camera className="h-7 w-7" /> Subir foto o PDF de cartola
+        onChange={async (e) => {
+          const f = e.target.files?.[0]; e.target.value = "";
+          if (!f) return;
+          setFileName(f.name); setErr(null);
+          try {
+            const fd = new FormData(); fd.append("file", f);
+            const res = await fetch("/api/cartola", { method: "POST", body: fd });
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.error || "No pude leerla");
+            onLoad(j as Cartola);
+          } catch (x) { setErr(x instanceof Error ? x.message : "No pude leerla"); }
+          finally { setFileName(null); }
+        }} />
+      <button onClick={() => fileRef.current?.click()} disabled={!!fileName}
+        className="flex w-full items-center justify-center gap-3 rounded-3xl bg-primary px-6 py-6 text-xl font-extrabold text-primary-foreground shadow-soft transition active:scale-95 disabled:opacity-70">
+        <Camera className="h-7 w-7" /> {fileName ? "Leyendo con calma…" : "Subir foto o PDF de cartola"}
       </button>
-      {fileName && <p className="animate-rise text-center text-sm text-muted-foreground">Leyendo “{fileName}” con calma…</p>}
+      {fileName && <p className="animate-rise text-center text-sm text-muted-foreground">Estoy leyendo “{fileName}” por ti. Puede tardar unos segundos.</p>}
+      {err && <p className="text-center text-sm font-semibold text-warm">{err}. Intenta con una foto más nítida.</p>}
 
       <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">O elige una cartola de ejemplo</p>
       {CARTOLAS.map((c) => (
