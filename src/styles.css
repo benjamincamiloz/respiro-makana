@@ -144,44 +144,47 @@
 }
 
 :root {
-  --radius: 1.25rem;
-  --background: oklch(0.987 0.003 100);
-  --foreground: oklch(0.3 0.04 220);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.3 0.04 220);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.3 0.04 220);
-  --primary: oklch(0.68 0.12 162);
-  --primary-foreground: oklch(0.99 0.01 160);
-  --secondary: oklch(0.45 0.07 220);
-  --secondary-foreground: oklch(0.98 0.01 200);
-  --muted: oklch(0.955 0.012 120);
-  --muted-foreground: oklch(0.5 0.03 220);
-  --accent: oklch(0.94 0.04 160);
-  --accent-foreground: oklch(0.35 0.07 170);
-  --border: oklch(0.91 0.015 120);
-  --input: oklch(0.91 0.015 120);
-  --ring: oklch(0.68 0.12 162);
-  --calm: oklch(0.93 0.035 220);
-  --calm-foreground: oklch(0.38 0.07 225);
-  --warm: oklch(0.95 0.04 75);
-  --warm-foreground: oklch(0.45 0.08 60);
-  --shadow-soft: 0 12px 30px -14px oklch(0.45 0.07 200 / 0.3);
+  /* Makana palette: azul #004CDC, navy #001337, cian #00DFD7, gris azulado #e3e9f3 */
+  --radius: 1rem;
+  --background: #f5f5fa;
+  --foreground: #001337;
+  --card: #ffffff;
+  --card-foreground: #001337;
+  --popover: #ffffff;
+  --popover-foreground: #001337;
+  --primary: #004cdc;
+  --primary-foreground: #ffffff;
+  --secondary: #001337;
+  --secondary-foreground: #ffffff;
+  --muted: #e3e9f3;
+  --muted-foreground: #617087;
+  --accent: #e0f7fb;
+  --accent-foreground: #003db3;
+  --border: #d9e1ed;
+  --input: #d9e1ed;
+  --ring: #004cdc;
+  --calm: #e3e9f3;
+  --calm-foreground: #001337;
+  --warm: #001337;
+  --warm-foreground: #7fe5f9;
+  --highlight: #00dfd7;
+  --shadow-soft: 0 12px 30px -14px rgb(0 76 220 / 0.28);
 }
 @theme inline {
   --color-calm: var(--calm);
   --color-calm-foreground: var(--calm-foreground);
   --color-warm: var(--warm);
   --color-warm-foreground: var(--warm-foreground);
-  --font-display: "Fraunces", serif;
-  --font-sans: "Nunito", sans-serif;
+  --font-display: "Plus Jakarta Sans", sans-serif;
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+  --color-highlight: var(--highlight);
   --shadow-soft: var(--shadow-soft);
 }
 @keyframes breathe { 0%,100% { transform: scale(0.92); opacity:.7 } 50% { transform: scale(1.08); opacity:1 } }
 @utility animate-breathe { animation: breathe 6s ease-in-out infinite; }
 @keyframes rise { from { opacity:0; transform: translateY(10px) } to { opacity:1; transform:none } }
 @utility animate-rise { animation: rise .45s ease-out both; }
-@layer base { body { font-family: var(--font-sans); font-size: 17px; } h1,h2,h3 { font-family: var(--font-display); } }
-:root { --surface: oklch(0.975 0.008 170); }
+@layer base { body { font-family: var(--font-sans); font-size: 17px; } h1,h2,h3 { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.02em; } }
+:root { --surface: #f5f5fa; }
 @theme inline { --color-surface: var(--surface); }
 input[type=range]::-webkit-slider-thumb { width: 26px; height: 26px; }

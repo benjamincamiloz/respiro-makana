@@ -3,4 +3,4 @@
 - [x] Lectura real de la cartola con IA
 - [x] Cartola de ejemplo (PDF) con cifras realistas para probar la lectura
 - [x] Audio real de Clara (nota de voz y respuestas del chat)
-- [ ] Colores e interfaz basados en makana.cl
+- [x] Colores e interfaz basados en makana.cl
