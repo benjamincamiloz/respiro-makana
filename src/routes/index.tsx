@@ -28,11 +28,7 @@ export const Route = createFileRoute("/")({
 const clp = (n: number) => "$" + Math.round(n).toLocaleString("es-CL");
 const SALE = 9000;
 
-type Cartola = { id: string; name: string; short: string; sub: string; debt: number; min: number; interest: number };
-const CARTOLAS: Cartola[] = [
-  { id: "ejemplo-tienda", name: "Ejemplo — Tarjeta de tienda", short: "tarjeta de tienda", sub: "Datos inventados, solo para ver cómo funciona", debt: 850000, min: 42500, interest: 26300 },
-  { id: "ejemplo-cuenta", name: "Ejemplo — Cuenta vista", short: "cuenta vista", sub: "Datos inventados, solo para ver cómo funciona", debt: 840000, min: 42000, interest: 25900 },
-];
+type Cartola = { id: string; name: string; short: string; debt: number; min: number; interest: number };
 
 function calc(extra: number, c: Cartola) {
   const r = extra / SALE; // ventas
@@ -94,9 +90,9 @@ function App() {
         ) : screen === "frasco" ? (
           <Frasco mood={mood} />
         ) : screen === "camino" ? (
-          <Camino mood={mood} />
+          <Camino cartola={cartola} mood={mood} goInicio={() => setScreen("inicio")} />
         ) : (
-          <Medidor cartola={cartola} mood={mood} onLoad={load} />
+          <Medidor cartola={cartola} mood={mood} goInicio={() => setScreen("inicio")} />
         )}
       </main>
 
@@ -222,16 +218,6 @@ function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara }: { mood: Mood
         </div>
       )}
 
-      <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">O elige una cartola de ejemplo</p>
-      <p className="text-xs text-muted-foreground">Ninguna de estas es tu cuenta: son datos ficticios para probar la app sin subir nada.</p>
-      {CARTOLAS.map((c) => (
-        <button key={c.id} onClick={() => onLoad(c)}
-          className="flex w-full items-center gap-3 rounded-3xl border-2 border-dashed border-secondary/40 bg-calm px-5 py-4 text-left font-bold text-calm-foreground transition active:scale-95">
-          <FileText className="h-6 w-6 shrink-0" />
-          <span>{c.name}<br /><span className="text-sm font-semibold opacity-80">{c.sub}</span></span>
-          <ArrowRight className="ml-auto h-5 w-5 shrink-0" />
-        </button>
-      ))}
     </section>
   );
 }
@@ -260,7 +246,7 @@ function Animo({ onPick }: { onPick: (m: MoodId) => void }) {
 
 type Ventas = "bajas" | "normales" | "buenas";
 
-function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: MoodId | null; onLoad: (c: Cartola) => void }) {
+function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: MoodId | null; goInicio: () => void }) {
   const [ventas, setVentas] = useState<Ventas | null>(null);
   const [extra, setExtra] = useState(2 * SALE);
   const [detail, setDetail] = useState(false);
@@ -277,7 +263,7 @@ function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: Moo
       <div className="animate-rise space-y-4 pt-16 text-center">
         <Wind className="mx-auto h-12 w-12 text-primary" />
         <p className="text-lg">Aún no tenemos tu cartola. Sin apuro.</p>
-        <button onClick={() => onLoad(CARTOLAS[0]!)} className="rounded-full bg-primary px-6 py-4 font-bold text-primary-foreground">Usar cartola de ejemplo</button>
+        <button onClick={goInicio} className="rounded-full bg-primary px-6 py-4 font-bold text-primary-foreground">Subir mi cartola</button>
       </div>
     );
   }
@@ -488,7 +474,7 @@ function Frasco({ mood }: { mood: MoodId | null }) {
 
 const PARADAS = 10;
 
-function Camino({ mood }: { mood: MoodId | null }) {
+function Camino({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: MoodId | null; goInicio: () => void }) {
   const [extra, setExtra] = useState(0);
   useEffect(() => {
     try {
@@ -496,7 +482,22 @@ function Camino({ mood }: { mood: MoodId | null }) {
       if (raw) setExtra(Math.max(0, Number(JSON.parse(raw)) || 0));
     } catch { /* sin camino guardado aún */ }
   }, []);
-  const debt = CARTOLAS[0]!.debt; // ejemplo ficticio
+  if (!cartola) {
+    return (
+      <section className="animate-rise space-y-5">
+        <div className="flex items-start gap-3 rounded-3xl bg-accent p-5 text-accent-foreground">
+          <Flag className="mt-1 h-7 w-7 shrink-0" />
+          <p className="font-semibold">Tu camino de salida parte con tu cartola. La subimos juntas y armamos las paradas con tus números reales.</p>
+        </div>
+        <div className="rounded-3xl bg-card p-6 text-center shadow-soft">
+          <MapPin className="mx-auto h-12 w-12 text-primary" />
+          <p className="mt-3 text-lg">Aquí armaremos tu camino, parada por parada.</p>
+          <button onClick={goInicio} className="mt-4 rounded-full bg-primary px-6 py-4 font-bold text-primary-foreground">Subir mi cartola</button>
+        </div>
+      </section>
+    );
+  }
+  const debt = cartola.debt;
   const tramo = debt / PARADAS;
   const done = Math.min(PARADAS, Math.floor(extra / tramo));
   const restante = Math.max(0, debt - Math.min(extra, debt));
