@@ -28,10 +28,10 @@ export const Route = createFileRoute("/")({
 const clp = (n: number) => "$" + Math.round(n).toLocaleString("es-CL");
 const SALE = 9000;
 
-type Cartola = { id: string; name: string; sub: string; debt: number; min: number; interest: number };
+type Cartola = { id: string; name: string; short: string; sub: string; debt: number; min: number; interest: number };
 const CARTOLAS: Cartola[] = [
-  { id: "cmr", name: "CMR Falabella / Tarjeta Retail", sub: "Deuda $850.000 en cuotas chicas de farmacia y ropa", debt: 850000, min: 42500, interest: 26300 },
-  { id: "be", name: "BancoEstado / CuentaRut", sub: "Pago mínimo de $42.000", debt: 840000, min: 42000, interest: 25900 },
+  { id: "ejemplo-tienda", name: "Ejemplo — Tarjeta de tienda", short: "tarjeta de tienda", sub: "Datos inventados, solo para ver cómo funciona", debt: 850000, min: 42500, interest: 26300 },
+  { id: "ejemplo-cuenta", name: "Ejemplo — Cuenta vista", short: "cuenta vista", sub: "Datos inventados, solo para ver cómo funciona", debt: 840000, min: 42000, interest: 25900 },
 ];
 
 function calc(extra: number, c: Cartola) {
