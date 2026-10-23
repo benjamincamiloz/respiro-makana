@@ -222,6 +222,14 @@ function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: Moo
   const [ventas, setVentas] = useState<Ventas | null>(null);
   const [extra, setExtra] = useState(2 * SALE);
   const [detail, setDetail] = useState(false);
+  const [pisoState, setPisoState] = useState<PisoState | null>(null);
+  const [celebrate, setCelebrate] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("respiro-piso");
+      if (raw) setPisoState(JSON.parse(raw) as PisoState);
+    } catch { /* sin piso guardado aún */ }
+  }, []);
   if (!cartola) {
     return (
       <div className="animate-rise space-y-4 pt-16 text-center">
@@ -232,10 +240,21 @@ function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: Moo
     );
   }
   const c = cartola;
-  const maxSales = ventas === "buenas" ? 3 : 2;
+  const piso = pisoState?.piso ?? 0;
+  const maxExtra = piso + (ventas === "buenas" ? 3 : 2);
   const { days, saved } = calc(extra, c);
   const sales = Math.round(extra / SALE);
-  const pick = (v: Ventas) => { setVentas(v); setExtra(v === "buenas" ? 3 * SALE : 2 * SALE); };
+  const record = (stepVentas: number) => {
+    const { state, pisoUp } = applyWeek(pisoState, weekKey(), stepVentas);
+    setPisoState(state);
+    try { localStorage.setItem("respiro-piso", JSON.stringify(state)); } catch { /* sin almacenamiento */ }
+    if (pisoUp) setCelebrate(true);
+  };
+  const pick = (v: Ventas) => {
+    setVentas(v);
+    if (v === "bajas") { setExtra(0); record(0); }
+    else { setExtra((piso + 1) * SALE); record(piso + 1); }
+  };
 
   return (
     <section className="animate-rise space-y-5">
