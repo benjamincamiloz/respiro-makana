@@ -131,10 +131,30 @@ function App() {
 
 function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara }: { mood: MoodId | null; onChangeMood: () => void; onLoad: (c: Cartola) => void; onOpenSos: () => void; onClara: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pin, setPin] = useState("");
+  const [pinErr, setPinErr] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const m = mood ? MOODS.find((x) => x.id === mood) : null;
   const r = mood ? REACTION[mood] : null;
+  const upload = async (f: File) => {
+    setPendingFile(null); setPin(""); setPinErr(false);
+    setFileName(f.name); setErr(null);
+    try {
+      const fd = new FormData(); fd.append("file", f);
+      const res = await fetch("/api/cartola", { method: "POST", body: fd });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "No pude leerla");
+      onLoad(j as Cartola);
+    } catch (x) { setErr(x instanceof Error ? x.message : "No pude leerla"); }
+    finally { setFileName(null); }
+  };
+  const abrir = () => {
+    if (!pendingFile) return;
+    if (pin !== "7890") { setPinErr(true); return; }
+    void upload(pendingFile);
+  };
   return (
     <section className="animate-rise space-y-6">
       {m && (
@@ -170,25 +190,37 @@ function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara }: { mood: Mood
       <p className="text-center text-muted-foreground">Sube tu cartola y yo me encargo de leerla. Tú solo verás lo que te da aire.</p>
 
       <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
-        onChange={async (e) => {
+        onChange={(e) => {
           const f = e.target.files?.[0]; e.target.value = "";
           if (!f) return;
-          setFileName(f.name); setErr(null);
-          try {
-            const fd = new FormData(); fd.append("file", f);
-            const res = await fetch("/api/cartola", { method: "POST", body: fd });
-            const j = await res.json();
-            if (!res.ok) throw new Error(j.error || "No pude leerla");
-            onLoad(j as Cartola);
-          } catch (x) { setErr(x instanceof Error ? x.message : "No pude leerla"); }
-          finally { setFileName(null); }
+          setErr(null); setPin(""); setPinErr(false); setPendingFile(f);
         }} />
-      <button onClick={() => fileRef.current?.click()} disabled={!!fileName}
+      <button onClick={() => fileRef.current?.click()} disabled={!!fileName || !!pendingFile}
         className="flex w-full items-center justify-center gap-3 rounded-3xl bg-primary px-6 py-6 text-xl font-extrabold text-primary-foreground shadow-soft transition active:scale-95 disabled:opacity-70">
         <Camera className="h-7 w-7" /> {fileName ? "Leyendo con calma…" : "Subir foto o PDF de cartola"}
       </button>
       {fileName && <p className="animate-rise text-center text-sm text-muted-foreground">Estoy leyendo “{fileName}” por ti. Puede tardar unos segundos.</p>}
       {err && <p className="text-center text-sm font-semibold text-warm">{err}. Intenta con una foto más nítida.</p>}
+
+      {pendingFile && (
+        <div className="animate-rise space-y-4 rounded-3xl bg-card p-5 shadow-soft">
+          <p className="flex items-center gap-2 font-bold"><ShieldCheck className="h-5 w-5 text-primary" /> Tu cartola viene con clave</p>
+          <p className="text-sm text-muted-foreground">Escribe los <b>últimos 4 dígitos de tu RUT</b> para abrir “{pendingFile.name}”. <span className="font-semibold">(En esta demo: 7890)</span></p>
+          <input
+            value={pin}
+            onChange={(e) => { setPin(e.target.value.replace(/\D/g, "").slice(0, 4)); setPinErr(false); }}
+            onKeyDown={(e) => { if (e.key === "Enter") abrir(); }}
+            inputMode="numeric" autoComplete="off" placeholder="••••" aria-label="Clave de la cartola"
+            className={`w-full rounded-2xl border-2 bg-background px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] outline-none transition ${pinErr ? "border-warm" : "border-border focus:border-primary"}`} />
+          {pinErr && <p className="animate-rise text-center text-sm font-semibold text-warm">Esa clave no coincide con esta cartola. Revisa los últimos 4 dígitos de tu RUT.</p>}
+          <button onClick={abrir} disabled={pin.length !== 4}
+            className="w-full rounded-full bg-primary py-3.5 font-bold text-primary-foreground transition active:scale-95 disabled:opacity-50">
+            Abrir mi cartola
+          </button>
+          <button onClick={() => { setPendingFile(null); setPin(""); setPinErr(false); }}
+            className="w-full text-sm font-bold text-muted-foreground underline">Cancelar, subir otra</button>
+        </div>
+      )}
 
       <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">O elige una cartola de ejemplo</p>
       {CARTOLAS.map((c) => (
