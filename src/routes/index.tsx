@@ -279,11 +279,26 @@ function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: Moo
         </div>
       </div>
 
+      {celebrate && piso > 0 && (
+        <div className="animate-rise rounded-3xl bg-accent p-5 text-center text-accent-foreground">
+          <Wind className="mx-auto h-8 w-8" />
+          <p className="mt-2 text-lg font-bold">¡Tu piso subió!</p>
+          <p className="mt-1 text-sm">Llevas semanas seguidas sumando tu paso. Tu pago de base ahora es <b>{clp(c.min + piso * SALE)}</b>, para siempre. Así, sin apuro, se sale del bucle.</p>
+        </div>
+      )}
+      {piso > 0 && ventas !== "bajas" && (
+        <div className="flex items-center gap-3 rounded-3xl bg-calm p-4 text-calm-foreground">
+          <Wind className="h-6 w-6 shrink-0" />
+          <p className="text-sm font-semibold">Tu piso de aire: pagas <b>{clp(c.min + piso * SALE)}</b> de base, con {piso} {piso === 1 ? "venta" : "ventas"} ya sumadas. Ya no tienes que pensarlo.</p>
+        </div>
+      )}
+
       {ventas === "bajas" && (
         <div className="animate-rise space-y-3 rounded-3xl bg-calm p-6 text-center text-calm-foreground">
           <ShieldCheck className="mx-auto h-10 w-10" />
           <p className="text-lg font-bold">Esta semana protegemos tu caja: pagamos el mínimo seguro y no sumamos ninguna cuota nueva.</p>
           <p>Pagas <b>{clp(c.min)}</b>. Sin sobregirarte. La próxima semana vemos si ganamos más aire.</p>
+          {piso > 0 && <p className="text-sm">Y tu piso queda guardado: cuando la semana mejore, seguimos desde ahí.</p>}
         </div>
       )}
 
