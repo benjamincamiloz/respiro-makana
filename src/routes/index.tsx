@@ -539,10 +539,11 @@ function ClaraChat({ mood, cartola, onPause, onPayments, onStatement }: { mood: 
   }
 
   const hello = claraWelcome(mood);
-  const ideas = mood === "agobiada" ? ["Necesito bajar el ritmo", "Me angustia comprar los remedios de mi mamá", "Hoy no quiero mirar cifras"]
+  const base = mood === "agobiada" ? ["Necesito bajar el ritmo", "Me angustia comprar los remedios de mi mamá", "Hoy no quiero mirar cifras"]
     : mood === "preocupada" ? ["¿Qué debo cuidar antes de pagar?", "Esta semana vendí poco", "Pago y mi deuda no baja"]
     : mood === "masomenos" ? ["Necesito cuidar mi descanso", "Ayúdame a elegir un paso para hoy", "Tengo un gasto de remedios que viene"]
     : ["Quiero ordenar mi próximo pago", "¿Podría usar algún beneficio para los remedios?", "¿Cómo avanzo sin volver a endeudarme?"];
+  const ideas = [...base, "Quiero comprar algo, ¿lo necesito de verdad?"];
 
   return (
     <section className="animate-rise flex min-h-[60vh] flex-col">
