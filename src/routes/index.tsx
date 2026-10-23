@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   Camera, FileText, Wind, Home as HomeIcon, Play, Pause, Eye, EyeOff,
   ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, Pill, Shirt, MessageCircle, Send, Loader2, Volume2,
+  Smile, Meh, Frown, Angry, Heart,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -33,10 +35,19 @@ function calc(extra: number, c: Cartola) {
   return { days: Math.round(r * 140 - r * r * 8), saved: Math.round(extra * (c.debt / c.min) * 0.45) };
 }
 
-type Screen = "inicio" | "medidor" | "clara";
+type MoodId = "tranquila" | "masomenos" | "preocupada" | "agobiada";
+const MOODS: { id: MoodId; label: string; note: string; icon: LucideIcon }[] = [
+  { id: "tranquila", label: "Tranquila", note: "Qué bueno, Paty. Aprovechemos esta calma para ordenar tus pagos con tiempo.", icon: Smile },
+  { id: "masomenos", label: "Más o menos", note: "Está bien no estar al cien. Hoy avanzamos a tu ritmo, sin apuro.", icon: Meh },
+  { id: "preocupada", label: "Preocupada", note: "Lo importante es que no estás sola. Vamos a mirar esto juntas, paso a paso.", icon: Frown },
+  { id: "agobiada", label: "Agobiada", note: "Respira hondo conmigo. Hoy solo miramos lo esencial; el resto puede esperar.", icon: Angry },
+];
+
+type Screen = "animo" | "inicio" | "medidor" | "clara";
 
 function App() {
-  const [screen, setScreen] = useState<Screen>("inicio");
+  const [screen, setScreen] = useState<Screen>("animo");
+  const [mood, setMood] = useState<MoodId | null>(null);
   const [cartola, setCartola] = useState<Cartola | null>(null);
   const [sos, setSos] = useState(false);
   const load = (c: Cartola) => { setCartola(c); setScreen("medidor"); };
@@ -55,40 +66,59 @@ function App() {
         </div>
       </header>
       <main className="mx-auto max-w-md px-5 pb-44 pt-6">
-        {screen === "inicio" ? <Inicio onLoad={load} /> : screen === "clara" ? <ClaraChat /> : <Medidor cartola={cartola} onLoad={load} />}
+        {screen === "animo" ? (
+          <Animo onPick={(m) => { setMood(m); setScreen("inicio"); }} />
+        ) : screen === "inicio" ? (
+          <Inicio mood={mood} onChangeMood={() => setScreen("animo")} onLoad={load} />
+        ) : screen === "clara" ? (
+          <ClaraChat />
+        ) : (
+          <Medidor cartola={cartola} onLoad={load} />
+        )}
       </main>
 
-      {screen !== "clara" && <button onClick={() => setSos(true)}
+      {screen !== "clara" && screen !== "animo" && <button onClick={() => setSos(true)}
         className="fixed bottom-24 left-1/2 z-20 flex w-[calc(100%-2.5rem)] max-w-sm -translate-x-1/2 items-center gap-3 rounded-full bg-warm px-5 py-3.5 text-left font-bold text-warm-foreground shadow-soft transition hover:scale-[1.02]">
         <Moon className="h-5 w-5 shrink-0" /> Pausa Nocturna (Tu momento libre)
       </button>}
 
-      <nav className="fixed inset-x-0 bottom-0 z-20 border-t bg-card/95 backdrop-blur">
-        <div className="mx-auto flex max-w-md">
-          {[
-            { id: "inicio" as const, label: "Inicio", icon: HomeIcon },
-            { id: "medidor" as const, label: "Mi aire", icon: Wind },
-            { id: "clara" as const, label: "Clara", icon: MessageCircle },
-          ].map((t) => (
-            <button key={t.id} onClick={() => setScreen(t.id)}
-              className={`flex flex-1 flex-col items-center gap-1 py-3 text-sm font-bold transition ${screen === t.id ? "text-primary" : "text-muted-foreground"}`}>
-              <t.icon className="h-6 w-6" /> {t.label}
-            </button>
-          ))}
-        </div>
-      </nav>
+      {screen !== "animo" && (
+        <nav className="fixed inset-x-0 bottom-0 z-20 border-t bg-card/95 backdrop-blur">
+          <div className="mx-auto flex max-w-md">
+            {[
+              { id: "inicio" as const, label: "Inicio", icon: HomeIcon },
+              { id: "medidor" as const, label: "Mi aire", icon: Wind },
+              { id: "clara" as const, label: "Clara", icon: MessageCircle },
+            ].map((t) => (
+              <button key={t.id} onClick={() => setScreen(t.id)}
+                className={`flex flex-1 flex-col items-center gap-1 py-3 text-sm font-bold transition ${screen === t.id ? "text-primary" : "text-muted-foreground"}`}>
+                <t.icon className="h-6 w-6" /> {t.label}
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
 
       {sos && <PausaSOS onClose={() => setSos(false)} />}
     </div>
   );
 }
 
-function Inicio({ onLoad }: { onLoad: (c: Cartola) => void }) {
+function Inicio({ mood, onChangeMood, onLoad }: { mood: MoodId | null; onChangeMood: () => void; onLoad: (c: Cartola) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const m = mood ? MOODS.find((x) => x.id === mood) : null;
   return (
     <section className="animate-rise space-y-6">
+      {m && (
+        <button onClick={onChangeMood}
+          className="flex w-full items-center gap-3 rounded-3xl bg-calm px-4 py-3 text-left text-calm-foreground transition active:scale-95">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/15"><m.icon className="h-5 w-5" /></span>
+          <span className="text-sm font-semibold">Hoy te sientes <b>{m.label.toLowerCase()}</b></span>
+          <span className="ml-auto text-xs font-bold underline underline-offset-2">Cambiar</span>
+        </button>
+      )}
       <div className="flex items-center gap-3 rounded-3xl bg-card p-4 shadow-soft">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><User className="h-6 w-6" /></div>
         <p className="font-semibold">Patricia, 58 años<br /><span className="text-sm text-muted-foreground">Cuidadora y vendedora de catálogo en Talca</span></p>
@@ -98,6 +128,7 @@ function Inicio({ onLoad }: { onLoad: (c: Cartola) => void }) {
         <Wind className="relative h-12 w-12 text-primary" />
       </div>
       <h1 className="text-center text-3xl leading-tight">Hola Patricia, respira hondo.<br /><span className="text-secondary">Cuidemos tu tranquilidad hoy.</span></h1>
+      {m && <p className="animate-rise text-center font-semibold text-secondary">{m.note}</p>}
       <p className="text-center text-muted-foreground">Sube tu cartola y yo me encargo de leerla. Tú solo verás lo que te da aire.</p>
 
       <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
@@ -130,6 +161,28 @@ function Inicio({ onLoad }: { onLoad: (c: Cartola) => void }) {
           <ArrowRight className="ml-auto h-5 w-5 shrink-0" />
         </button>
       ))}
+    </section>
+  );
+}
+
+function Animo({ onPick }: { onPick: (m: MoodId) => void }) {
+  return (
+    <section className="animate-rise flex min-h-[70vh] flex-col justify-center py-6 text-center">
+      <div className="relative mx-auto flex h-24 w-24 items-center justify-center">
+        <div className="absolute inset-0 rounded-full bg-accent animate-breathe" />
+        <Heart className="relative h-10 w-10 text-primary" />
+      </div>
+      <h1 className="mt-6 text-3xl leading-tight">¿Cómo te sientes hoy, Paty?</h1>
+      <p className="mt-2 text-muted-foreground">Sin respuesta correcta. Solo quiero saber cómo acompañarte hoy.</p>
+      <div className="mt-8 grid grid-cols-2 gap-3">
+        {MOODS.map((m) => (
+          <button key={m.id} onClick={() => onPick(m.id)}
+            className="flex flex-col items-center gap-2.5 rounded-3xl border-2 border-border bg-card p-5 shadow-soft transition hover:border-primary active:scale-95">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground"><m.icon className="h-8 w-8" /></span>
+            <span className="font-bold">{m.label}</span>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
