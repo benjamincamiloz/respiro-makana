@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { applyWeek, weekKey, type PisoState } from "@/lib/piso";
+import { APORTE, aportar, rescatar, type FrascoState } from "@/lib/frasco";
 import { claraWelcome } from "@/lib/clara";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
 import {
   Camera, FileText, Wind, Home as HomeIcon, Play, Pause, Eye, EyeOff,
   ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, Pill, Shirt, MessageCircle, Send, Loader2, Volume2,
-  Smile, Meh, Frown, Angry, Heart,
+  Smile, Meh, Frown, Angry, Heart, PiggyBank, MapPin, Flag, Check, RotateCcw,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -61,7 +62,7 @@ const REACTION: Record<MoodId, Reaction> = {
   agobiada: { title: "Primero respira", text: "Antes de mirar números, tomemos 60 segundos juntos. El resto espera.", action: "Respirar 60 segundos", kind: "sos" },
 };
 
-type Screen = "animo" | "inicio" | "medidor" | "clara";
+type Screen = "animo" | "inicio" | "medidor" | "frasco" | "camino" | "clara";
 
 function App() {
   const [screen, setScreen] = useState<Screen>("animo");
@@ -90,6 +91,10 @@ function App() {
           <Inicio mood={mood} onChangeMood={() => setScreen("animo")} onLoad={load} onOpenSos={() => setSos(true)} onClara={() => setScreen("clara")} />
         ) : screen === "clara" ? (
           <ClaraChat mood={mood} cartola={cartola} onPause={() => setSos(true)} onPayments={() => setScreen("medidor")} onStatement={() => setScreen("inicio")} />
+        ) : screen === "frasco" ? (
+          <Frasco mood={mood} />
+        ) : screen === "camino" ? (
+          <Camino mood={mood} />
         ) : (
           <Medidor cartola={cartola} mood={mood} onLoad={load} />
         )}
@@ -106,10 +111,12 @@ function App() {
             {[
               { id: "inicio" as const, label: "Inicio", icon: HomeIcon },
               { id: "medidor" as const, label: "Mi aire", icon: Wind },
+              { id: "frasco" as const, label: "Frasco", icon: PiggyBank },
+              { id: "camino" as const, label: "Camino", icon: MapPin },
               { id: "clara" as const, label: "Clara", icon: MessageCircle },
             ].map((t) => (
               <button key={t.id} onClick={() => setScreen(t.id)}
-                className={`flex flex-1 flex-col items-center gap-1 py-3 text-sm font-bold transition ${screen === t.id ? "text-primary" : "text-muted-foreground"}`}>
+                className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-xs font-bold transition ${screen === t.id ? "text-primary" : "text-muted-foreground"}`}>
                 <t.icon className="h-6 w-6" /> {t.label}
               </button>
             ))}
@@ -347,6 +354,179 @@ function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: Moo
           )}
         </>
       )}
+    </section>
+  );
+}
+
+function Frasco({ mood }: { mood: MoodId | null }) {
+  const [state, setState] = useState<FrascoState | null>(null);
+  const [askRescue, setAskRescue] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("respiro-frasco");
+      if (raw) setState(JSON.parse(raw) as FrascoState);
+    } catch { /* sin frasco guardado aún */ }
+  }, []);
+  const save = (s: FrascoState) => {
+    setState(s);
+    try { localStorage.setItem("respiro-frasco", JSON.stringify(s)); } catch { /* sin almacenamiento */ }
+  };
+  const saved = state?.saved ?? 0;
+  const goal = state?.goal ?? 90000;
+  const pct = Math.min(1, saved / goal);
+  const full = saved >= goal;
+  const add = () => {
+    const { state: s, added } = aportar(state, weekKey());
+    save(s);
+    setNote(added
+      ? (s.saved >= s.goal ? "¡Frasco lleno! Ya tienes tu colchón para los sustos." : "Guardado. De a poquito se llena el frasco.")
+      : "Esta semana ya guardaste. La próxima sumamos otro poquito.");
+  };
+  const rescue = (monto: number, para: string) => {
+    const { state: s, taken } = rescatar(state, monto);
+    save(s); setAskRescue(false);
+    setNote(taken > 0
+      ? `Usaste ${clp(taken)} para ${para}. Para eso es el frasco: usaste tu plata, no la tarjeta.`
+      : "El frasco está vacío por ahora. Empecemos a llenarlo de a poquito.");
+  };
+  return (
+    <section className="animate-rise space-y-5">
+      <div className="flex items-start gap-3 rounded-3xl bg-accent p-5 text-accent-foreground">
+        <PiggyBank className="mt-1 h-7 w-7 shrink-0" />
+        <p className="font-semibold">{mood === "agobiada"
+          ? "Este es tu frasco de los sustos. No hay que hacer nada hoy: solo mira cómo va."
+          : "Tu frasco de imprevistos: un colchón chiquito para que el próximo susto no vuelva a la tarjeta."}</p>
+      </div>
+
+      <div className="rounded-3xl bg-card p-6 text-center shadow-soft">
+        <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Mi frasco</p>
+        <div className="relative mx-auto mt-4 h-48 w-32 overflow-hidden rounded-b-[3rem] rounded-t-xl border-4 border-secondary/30 bg-muted">
+          <div className="absolute inset-x-0 bottom-0 bg-primary/80 transition-all duration-700" style={{ height: `${Math.max(4, pct * 100)}%` }} />
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <p className={`font-display text-3xl ${pct > 0.45 ? "text-primary-foreground" : "text-primary"}`}>{clp(saved)}</p>
+            <p className={`text-xs font-bold ${pct > 0.45 ? "text-primary-foreground" : "text-muted-foreground"}`}>de {clp(goal)}</p>
+          </div>
+        </div>
+        <p className="mt-4 text-muted-foreground">
+          {full
+            ? "Frasco lleno. Los remedios de la mamá o una sorpresa ya no te quitan el sueño."
+            : saved === 0
+              ? "Empecemos con un poquito esta semana. De a poquito se llena."
+              : `Llevas ${clp(saved)} guardados. Si pasa algo, estás cubierta.`}
+        </p>
+        {state && state.rescues > 0 && (
+          <p className="mt-2 text-sm font-semibold text-secondary">Ya te salvó {state.rescues} {state.rescues === 1 ? "vez" : "veces"} de usar la tarjeta.</p>
+        )}
+      </div>
+
+      {note && <p className="animate-rise rounded-3xl bg-calm p-4 text-center text-sm font-semibold text-calm-foreground">{note}</p>}
+
+      {!askRescue ? (
+        <div className="space-y-3">
+          <button onClick={add} disabled={full}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 text-lg font-bold text-primary-foreground transition active:scale-95 disabled:opacity-50">
+            <PiggyBank className="h-5 w-5" /> {full ? "Frasco lleno" : `Guardar ${clp(APORTE)} esta semana`}
+          </button>
+          <button onClick={() => setAskRescue(true)}
+            className="w-full rounded-full border-2 border-border py-3.5 font-bold text-secondary transition active:scale-95">
+            Necesito usar el frasco
+          </button>
+        </div>
+      ) : (
+        <div className="animate-rise space-y-3 rounded-3xl bg-card p-5 shadow-soft">
+          <p className="font-bold">¿Para qué lo necesitas?</p>
+          <button onClick={() => rescue(30000, "los remedios de la mamá")}
+            className="flex w-full items-center gap-3 rounded-2xl border-2 border-border p-4 text-left font-semibold transition hover:border-primary">
+            <Pill className="h-6 w-6 shrink-0 text-primary" /> Remedios de la mamá ({clp(30000)})
+          </button>
+          <button onClick={() => rescue(saved, "un imprevisto")}
+            className="flex w-full items-center gap-3 rounded-2xl border-2 border-border p-4 text-left font-semibold transition hover:border-primary">
+            <ShieldCheck className="h-6 w-6 shrink-0 text-primary" /> Otro imprevisto (lo que haya: {clp(saved)})
+          </button>
+          <button onClick={() => setAskRescue(false)} className="w-full text-sm font-bold text-muted-foreground underline">Mejor no, era solo un antojo</button>
+        </div>
+      )}
+
+      <p className="text-center text-sm text-muted-foreground">Usar el frasco no es perder: es exactamente para lo que lo llenaste.</p>
+    </section>
+  );
+}
+
+const PARADAS = 10;
+
+function Camino({ mood }: { mood: MoodId | null }) {
+  const [extra, setExtra] = useState(0);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("respiro-camino");
+      if (raw) setExtra(Math.max(0, Number(JSON.parse(raw)) || 0));
+    } catch { /* sin camino guardado aún */ }
+  }, []);
+  const debt = CARTOLAS[0]!.debt; // CMR Falabella: $850.000
+  const tramo = debt / PARADAS;
+  const done = Math.min(PARADAS, Math.floor(extra / tramo));
+  const restante = Math.max(0, debt - Math.min(extra, debt));
+  const ventasRestantes = Math.ceil(restante / SALE);
+  const mark = (v: number) => {
+    setExtra(v);
+    try { localStorage.setItem("respiro-camino", JSON.stringify(v)); } catch { /* sin almacenamiento */ }
+  };
+  return (
+    <section className="animate-rise space-y-5">
+      <div className="flex items-start gap-3 rounded-3xl bg-accent p-5 text-accent-foreground">
+        <Flag className="mt-1 h-7 w-7 shrink-0" />
+        <p className="font-semibold">{mood === "agobiada"
+          ? "Este es tu camino de salida. Hoy solo míralo: hay una salida y vas avanzando."
+          : "Tu camino de salida: la deuda grande se vuelve un viaje con paradas, y cada venta extra te acerca a la siguiente."}</p>
+      </div>
+
+      <div className="rounded-3xl bg-card p-6 shadow-soft">
+        <p className="text-center text-sm font-bold uppercase tracking-wider text-muted-foreground">Mi camino</p>
+        <p className="mt-1 text-center text-lg font-bold text-secondary">
+          {done === 0 ? "Estás en la partida" : done >= PARADAS ? "¡Llegaste! Camino completo." : `Vas en la parada ${done} de ${PARADAS}`}
+        </p>
+        <div className="relative mx-auto mt-6 max-w-[16rem]">
+          <div className="absolute bottom-5 left-1/2 top-5 w-1 -translate-x-1/2 rounded-full bg-muted" />
+          <div className="space-y-4">
+            {Array.from({ length: PARADAS }, (_, i) => {
+              const n = PARADAS - i; // la parada 1 queda abajo, la 10 arriba
+              const reached = n <= done;
+              const next = n === done + 1;
+              return (
+                <div key={n} className="relative flex items-center gap-3">
+                  <span className={`z-10 mx-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 font-bold transition ${
+                    reached ? "border-primary bg-primary text-primary-foreground" : next ? "border-primary bg-accent text-accent-foreground" : "border-border bg-card text-muted-foreground"}`}>
+                    {reached ? <Check className="h-5 w-5" /> : n}
+                  </span>
+                  <span className={`absolute left-[calc(50%+2rem)] whitespace-nowrap text-sm font-semibold ${next ? "text-primary" : "text-muted-foreground"}`}>
+                    {n === PARADAS ? "¡Libre de la CMR!" : next ? "Tu próxima parada" : reached ? "Ya pasaste" : ""}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <p className="mt-6 text-center text-muted-foreground">
+          {done >= PARADAS
+            ? "La tarjeta quedó atrás. Este camino lo hiciste tú, de a poquito."
+            : <>Cada parada son <b>{clp(tramo)}</b> pagados sobre el mínimo. Te faltan <b>{ventasRestantes} ventas de catálogo</b> para llegar al final.</>}
+        </p>
+      </div>
+
+      {done < PARADAS && (
+        <div className="flex gap-3 rounded-3xl bg-warm p-4 text-left text-warm-foreground">
+          <ShoppingBag className="mt-1 h-6 w-6 shrink-0" />
+          <p className="font-semibold">Cada venta extra que sumes en “Mi aire” te acerca una parada. Sin apuro: el camino no se borra.</p>
+        </div>
+      )}
+
+      <div className="flex justify-center gap-3 text-xs">
+        <button onClick={() => mark(extra + SALE)} className="font-semibold text-muted-foreground underline underline-offset-2">Marcar una venta extra pagada</button>
+        {extra > 0 && (
+          <button onClick={() => mark(0)} className="flex items-center gap-1 font-semibold text-muted-foreground underline underline-offset-2"><RotateCcw className="h-3 w-3" /> Empezar de nuevo</button>
+        )}
+      </div>
     </section>
   );
 }
