@@ -18,7 +18,7 @@ export const Route = createFileRoute("/api/clara")({
         return Response.json(data);
       },
       POST: async ({ request }) => {
-        const { device, text } = (await request.json()) as { device: string; text: string };
+        const { device, text, mood } = (await request.json()) as { device: string; text: string; mood?: string | null };
         if (!device || device.length < 10 || !text?.trim() || text.length > 2000)
           return Response.json({ error: "Mensaje inválido" }, { status: 400 });
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -32,9 +32,11 @@ export const Route = createFileRoute("/api/clara")({
           ...(hist ?? []).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
           { role: "user", content: text.trim() },
         ];
+        const MOOD: Record<string, string> = { tranquila: "tranquila", masomenos: "más o menos", preocupada: "preocupada", agobiada: "agobiada" };
+        const moodNote = mood && MOOD[mood] ? ` Hoy Patricia se siente ${MOOD[mood]}. Parte validando esa emoción; si está agobiada, no le entregues cifras hasta que ella pregunte y sugiérale la Pausa Nocturna de 60 segundos; si está preocupada, dale un solo paso muy pequeño; si está tranquila, puedes proponer un paso un poco más grande.` : "";
         const result = streamText({
           model: lovableProvider().responses(MODEL),
-          instructions: SYSTEM,
+          instructions: SYSTEM + moodNote,
           messages,
           abortSignal: request.signal,
           providerOptions: OPENAI_OPTS,

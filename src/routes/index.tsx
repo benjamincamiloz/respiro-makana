@@ -43,6 +43,21 @@ const MOODS: { id: MoodId; label: string; note: string; icon: LucideIcon }[] = [
   { id: "agobiada", label: "Agobiada", note: "Respira hondo conmigo. Hoy solo miramos lo esencial; el resto puede esperar.", icon: Angry },
 ];
 
+const GREETING: Record<MoodId, string> = {
+  tranquila: "Qué bueno verte así, Patricia.",
+  masomenos: "Hola Patricia, hoy vamos a tu ritmo.",
+  preocupada: "Hola Patricia, estás bien resguardada.",
+  agobiada: "Patricia, respira hondo. Aquí no pasa nada.",
+};
+
+type Reaction = { title: string; text: string; action?: string; kind: "sos" | "clara" | null };
+const REACTION: Record<MoodId, Reaction> = {
+  tranquila: { title: "Buen día para ordenar", text: "Con esta calma es más fácil ganarle días de aire al banco.", kind: null },
+  masomenos: { title: "A tu ritmo", text: "Hoy miramos solo lo justo. Si algo te apura, respiramos juntos primero.", action: "Respirar 60 segundos", kind: "sos" },
+  preocupada: { title: "No estás sola", text: "Clara te acompaña en lo que te tenga inquieta hoy, sin juzgarte.", action: "Hablar con Clara", kind: "clara" },
+  agobiada: { title: "Primero respira", text: "Antes de mirar números, tomemos 60 segundos juntos. El resto espera.", action: "Respirar 60 segundos", kind: "sos" },
+};
+
 type Screen = "animo" | "inicio" | "medidor" | "clara";
 
 function App() {
@@ -69,11 +84,11 @@ function App() {
         {screen === "animo" ? (
           <Animo onPick={(m) => { setMood(m); setScreen("inicio"); }} />
         ) : screen === "inicio" ? (
-          <Inicio mood={mood} onChangeMood={() => setScreen("animo")} onLoad={load} />
+          <Inicio mood={mood} onChangeMood={() => setScreen("animo")} onLoad={load} onOpenSos={() => setSos(true)} onClara={() => setScreen("clara")} />
         ) : screen === "clara" ? (
-          <ClaraChat />
+          <ClaraChat mood={mood} />
         ) : (
-          <Medidor cartola={cartola} onLoad={load} />
+          <Medidor cartola={cartola} mood={mood} onLoad={load} />
         )}
       </main>
 
@@ -104,11 +119,12 @@ function App() {
   );
 }
 
-function Inicio({ mood, onChangeMood, onLoad }: { mood: MoodId | null; onChangeMood: () => void; onLoad: (c: Cartola) => void }) {
+function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara }: { mood: MoodId | null; onChangeMood: () => void; onLoad: (c: Cartola) => void; onOpenSos: () => void; onClara: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const m = mood ? MOODS.find((x) => x.id === mood) : null;
+  const r = mood ? REACTION[mood] : null;
   return (
     <section className="animate-rise space-y-6">
       {m && (
@@ -127,8 +143,20 @@ function Inicio({ mood, onChangeMood, onLoad }: { mood: MoodId | null; onChangeM
         <div className="absolute inset-0 rounded-full bg-accent animate-breathe" />
         <Wind className="relative h-12 w-12 text-primary" />
       </div>
-      <h1 className="text-center text-3xl leading-tight">Hola Patricia, respira hondo.<br /><span className="text-secondary">Cuidemos tu tranquilidad hoy.</span></h1>
+      <h1 className="text-center text-3xl leading-tight">{mood ? GREETING[mood] : "Hola Patricia, respira hondo."}<br /><span className="text-secondary">Cuidemos tu tranquilidad hoy.</span></h1>
       {m && <p className="animate-rise text-center font-semibold text-secondary">{m.note}</p>}
+      {r && (
+        <div className="animate-rise rounded-3xl bg-card p-5 shadow-soft">
+          <p className="font-bold">{r.title}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{r.text}</p>
+          {r.action && r.kind === "sos" && (
+            <button onClick={onOpenSos} className="mt-3 w-full rounded-full bg-warm py-3 font-bold text-warm-foreground transition active:scale-95">{r.action}</button>
+          )}
+          {r.action && r.kind === "clara" && (
+            <button onClick={onClara} className="mt-3 w-full rounded-full bg-primary py-3 font-bold text-primary-foreground transition active:scale-95">{r.action}</button>
+          )}
+        </div>
+      )}
       <p className="text-center text-muted-foreground">Sube tu cartola y yo me encargo de leerla. Tú solo verás lo que te da aire.</p>
 
       <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
@@ -189,7 +217,7 @@ function Animo({ onPick }: { onPick: (m: MoodId) => void }) {
 
 type Ventas = "bajas" | "normales" | "buenas";
 
-function Medidor({ cartola, onLoad }: { cartola: Cartola | null; onLoad: (c: Cartola) => void }) {
+function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: MoodId | null; onLoad: (c: Cartola) => void }) {
   const [ventas, setVentas] = useState<Ventas | null>(null);
   const [extra, setExtra] = useState(2 * SALE);
   const [detail, setDetail] = useState(false);
@@ -212,7 +240,11 @@ function Medidor({ cartola, onLoad }: { cartola: Cartola | null; onLoad: (c: Car
     <section className="animate-rise space-y-5">
       <div className="flex items-start gap-3 rounded-3xl bg-accent p-5 text-accent-foreground">
         <ShieldCheck className="mt-1 h-7 w-7 shrink-0" />
-        <p className="font-semibold">Tu cuenta {c.name.split(" /")[0]} está al día y tu mamá está protegida. Vamos a ver cuánto aire le ganamos al banco este mes.</p>
+        <p className="font-semibold">{mood === "agobiada"
+          ? "Hoy solo lo esencial: cuánto pagar y cuánto aire ganas. La letra chica puede esperar otro día."
+          : mood === "preocupada"
+            ? "No estás sola en esto. Un paso a la vez: primero tus ventas, después el pago."
+            : `Tu cuenta ${c.name.split(" /")[0]} está al día y tu mamá está protegida. Vamos a ver cuánto aire le ganamos al banco este mes.`}</p>
       </div>
 
       <VoiceNote text={`Hola Paty, soy Clara. Ya revisé tu cartola de ${c.name.split(" /")[0]} por ti, para que no pases el mal rato sola. Respira tranquila: tu cuenta está al día y esto tiene arreglo. Debes ${clp(c.debt).replace("$", "")} pesos, y si pagas solo el mínimo de ${clp(c.min).replace("$", "")}, casi ${clp(c.interest).replace("$", "")} se van en intereses para el banco. Pero si esta semana sumas lo de un par de ventas del catálogo, empiezas a ganarle días de aire. Vamos paso a paso, yo te acompaño.`} />
@@ -262,15 +294,21 @@ function Medidor({ cartola, onLoad }: { cartola: Cartola | null; onLoad: (c: Car
         </div>
       )}
 
-      <button onClick={() => setDetail(!detail)} className="mx-auto flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:underline">
-        {detail ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />} {detail ? "Ocultar" : "Ver"} detalle técnico
-      </button>
-      {detail && (
-        <dl className="animate-rise grid grid-cols-2 gap-2 rounded-2xl bg-muted p-4 text-sm">
-          <dt>Deuda</dt><dd className="text-right font-bold">{clp(c.debt)}</dd>
-          <dt>Pago mínimo</dt><dd className="text-right font-bold">{clp(c.min)}</dd>
-          <dt>Interés mensual (solo mínimo)</dt><dd className="text-right font-bold">{clp(c.interest)}</dd>
-        </dl>
+      {mood === "agobiada" ? (
+        <p className="text-center text-sm text-muted-foreground">Hoy no necesitas el detalle técnico: tu caja está cuidada y el resto puede esperar.</p>
+      ) : (
+        <>
+          <button onClick={() => setDetail(!detail)} className="mx-auto flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:underline">
+            {detail ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />} {detail ? "Ocultar" : "Ver"} detalle técnico
+          </button>
+          {detail && (
+            <dl className="animate-rise grid grid-cols-2 gap-2 rounded-2xl bg-muted p-4 text-sm">
+              <dt>Deuda</dt><dd className="text-right font-bold">{clp(c.debt)}</dd>
+              <dt>Pago mínimo</dt><dd className="text-right font-bold">{clp(c.min)}</dd>
+              <dt>Interés mensual (solo mínimo)</dt><dd className="text-right font-bold">{clp(c.interest)}</dd>
+            </dl>
+          )}
+        </>
       )}
     </section>
   );
@@ -422,7 +460,7 @@ function getDevice() {
   return id;
 }
 
-function ClaraChat() {
+function ClaraChat({ mood }: { mood: MoodId | null }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -441,7 +479,7 @@ function ClaraChat() {
     setText(""); setErr(null); setBusy(true);
     setMsgs((m) => [...m, { role: "user", content: v }]);
     try {
-      const res = await fetch("/api/clara", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ device: getDevice(), text: v }) });
+      const res = await fetch("/api/clara", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ device: getDevice(), text: v, mood: mood ?? null }) });
       if (!res.ok || !res.body) { const j = await res.json().catch(() => ({})); throw new Error(j.error || "Clara no pudo responder"); }
       const reader = res.body.getReader(); const dec = new TextDecoder(); let acc = "";
       setMsgs((m) => [...m, { role: "assistant", content: "" }]);
@@ -457,7 +495,14 @@ function ClaraChat() {
     } finally { setBusy(false); inputRef.current?.focus(); }
   }
 
-  const ideas = ["Me llegó la cartola y me da susto abrirla", "Quiero comprarle zapatillas a mi nieto en 6 cuotas", "Esta semana vendí poco"];
+  const hello = mood === "agobiada" ? "Te noté agobiada hoy, Paty. Aquí nadie te va a apurar: cuéntame qué pesa más, aunque sea chiquito."
+    : mood === "preocupada" ? "Te noté preocupada hoy. Nada de lo que veamos aquí te va a asustar: cuéntame qué te tiene inquieta."
+    : mood === "masomenos" ? "Hola Paty, ¿un día más o menos, no? Estoy contigo igual. Cuéntame cómo va, sin apuro."
+    : "¡Qué bueno verte tranquila hoy, Paty! Si quieres, aprovechamos la calma para dar un pasito juntos.";
+  const ideas = mood === "agobiada" ? ["Me siento sobrepasada con todo", "No quiero mirar la cartola hoy", "Ayúdame a respirar"]
+    : mood === "preocupada" ? ["Me llegó la cartola y me da susto abrirla", "¿Cómo le gano días de aire al banco?", "Esta semana vendí poco"]
+    : mood === "masomenos" ? ["Me siento con poca energía esta semana", "No quiero pensar en las cuotas hoy", "¿Qué es lo más urgente?"]
+    : ["¿Cuánto paga de más si pago solo el mínimo?", "Quiero comprarle zapatillas a mi nieto en 6 cuotas", "Esta semana vendí poco"];
 
   return (
     <section className="animate-rise flex min-h-[60vh] flex-col">
@@ -468,7 +513,7 @@ function ClaraChat() {
       <div className="flex-1 space-y-3">
         {msgs.length === 0 && (
           <div className="space-y-2">
-            <p className="rounded-3xl rounded-tl-md bg-accent p-4 text-accent-foreground">Hola Paty, aquí estoy. Cuéntame lo que te tenga inquieta, aunque sea chiquito.</p>
+            <p className="rounded-3xl rounded-tl-md bg-accent p-4 text-accent-foreground">{hello}</p>
             {ideas.map((i) => <button key={i} onClick={() => send(i)} className="block w-full rounded-2xl border bg-card px-4 py-3 text-left text-sm font-semibold">{i}</button>)}
           </div>
         )}
