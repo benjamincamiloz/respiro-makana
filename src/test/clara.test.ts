@@ -17,7 +17,7 @@ describe("Clara statement context", () => {
 
 describe("Clara compra advice", () => {
   it("offers home alternatives without ever suggesting borrowing", () => {
-    const alternatives = CLARA_SYSTEM.match(/sugiere alternativas sencillas en casa:[^\n]*/)?.[0] ?? "";
+    const alternatives = CLARA_SYSTEM.match(/sugiere alternativas sencillas en casa:[^.]*\./)?.[0] ?? "";
     expect(alternatives).toContain("reparar");
     expect(alternatives).toContain("reutilizar");
     expect(alternatives).not.toContain("prestado");
