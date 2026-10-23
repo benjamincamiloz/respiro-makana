@@ -504,15 +504,21 @@ function ClaraChat({ mood, cartola, onPause, onPayments, onStatement }: { mood: 
   const [err, setErr] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const hasSent = useRef(false);
 
   useEffect(() => {
-    fetch(`/api/clara?device=${getDevice()}`).then((r) => r.json()).then((d) => Array.isArray(d) && setMsgs(d)).catch(() => {});
+    let active = true;
+    fetch(`/api/clara?device=${getDevice()}`).then((r) => r.json()).then((d) => {
+      if (active && !hasSent.current && Array.isArray(d)) setMsgs(d);
+    }).catch(() => {});
     inputRef.current?.focus();
+    return () => { active = false; };
   }, []);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
 
   async function send(t: string) {
     const v = t.trim(); if (!v || busy) return;
+    hasSent.current = true;
     setText(""); setErr(null); setBusy(true);
     setMsgs((m) => [...m, { role: "user", content: v }]);
     try {
