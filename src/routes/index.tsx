@@ -90,7 +90,7 @@ function App() {
         ) : screen === "frasco" ? (
           <Frasco mood={mood} />
         ) : screen === "camino" ? (
-          <Camino mood={mood} />
+          <Camino cartola={cartola} mood={mood} goInicio={() => setScreen("inicio")} />
         ) : (
           <Medidor cartola={cartola} mood={mood} goInicio={() => setScreen("inicio")} />
         )}
@@ -474,7 +474,7 @@ function Frasco({ mood }: { mood: MoodId | null }) {
 
 const PARADAS = 10;
 
-function Camino({ mood }: { mood: MoodId | null }) {
+function Camino({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: MoodId | null; goInicio: () => void }) {
   const [extra, setExtra] = useState(0);
   useEffect(() => {
     try {
@@ -482,7 +482,22 @@ function Camino({ mood }: { mood: MoodId | null }) {
       if (raw) setExtra(Math.max(0, Number(JSON.parse(raw)) || 0));
     } catch { /* sin camino guardado aún */ }
   }, []);
-  const debt = CARTOLAS[0]!.debt; // ejemplo ficticio
+  if (!cartola) {
+    return (
+      <section className="animate-rise space-y-5">
+        <div className="flex items-start gap-3 rounded-3xl bg-accent p-5 text-accent-foreground">
+          <Flag className="mt-1 h-7 w-7 shrink-0" />
+          <p className="font-semibold">Tu camino de salida parte con tu cartola. La subimos juntas y armamos las paradas con tus números reales.</p>
+        </div>
+        <div className="rounded-3xl bg-card p-6 text-center shadow-soft">
+          <MapPin className="mx-auto h-12 w-12 text-primary" />
+          <p className="mt-3 text-lg">Aquí armaremos tu camino, parada por parada.</p>
+          <button onClick={goInicio} className="mt-4 rounded-full bg-primary px-6 py-4 font-bold text-primary-foreground">Subir mi cartola</button>
+        </div>
+      </section>
+    );
+  }
+  const debt = cartola.debt;
   const tramo = debt / PARADAS;
   const done = Math.min(PARADAS, Math.floor(extra / tramo));
   const restante = Math.max(0, debt - Math.min(extra, debt));
