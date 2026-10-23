@@ -314,11 +314,11 @@ function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: Moo
           </div>
           <p className="text-lg">Pagas <b>{clp(c.min + extra)}</b> este mes</p>
           <p className="text-muted-foreground">{saved > 0 ? <>Te ahorras <b className="text-primary">{clp(saved)}</b> en intereses</> : <>Le regalas {clp(c.interest)} de interés al banco</>}</p>
-          <input type="range" min={0} max={maxSales * SALE} step={SALE} value={Math.min(extra, maxSales * SALE)}
+          <input type="range" min={piso * SALE} max={maxExtra * SALE} step={SALE} value={Math.min(Math.max(extra, piso * SALE), maxExtra * SALE)}
             onChange={(e) => setExtra(Number(e.target.value))} aria-label="Ventas extra destinadas al pago"
             className="mt-6 h-3 w-full cursor-pointer appearance-none rounded-full bg-muted accent-primary" />
           <div className="mt-1 flex justify-between text-xs font-semibold text-muted-foreground">
-            {Array.from({ length: maxSales + 1 }, (_, i) => <span key={i}>{i === 0 ? "Mínimo" : `${i} venta${i > 1 ? "s" : ""}`}</span>)}
+            {Array.from({ length: maxExtra - piso + 1 }, (_, i) => <span key={i}>{i === 0 ? (piso > 0 ? "Tu piso" : "Mínimo") : `+${i} venta${i > 1 ? "s" : ""}`}</span>)}
           </div>
           {extra > 0 && (
             <div className="mt-5 flex gap-3 rounded-3xl bg-warm p-4 text-left text-warm-foreground">
