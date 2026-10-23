@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiCartolaRouteImport } from './routes/api/cartola'
 import { Route as ApiClaraRouteImport } from './routes/api/clara'
+import { Route as ApiVozRouteImport } from './routes/api/voz'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,44 @@ const ApiClaraRoute = ApiClaraRouteImport.update({
   path: '/api/clara',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiVozRoute = ApiVozRouteImport.update({
+  id: '/api/voz',
+  path: '/api/voz',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/cartola': typeof ApiCartolaRoute
   '/api/clara': typeof ApiClaraRoute
+  '/api/voz': typeof ApiVozRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/cartola': typeof ApiCartolaRoute
   '/api/clara': typeof ApiClaraRoute
+  '/api/voz': typeof ApiVozRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/cartola': typeof ApiCartolaRoute
   '/api/clara': typeof ApiClaraRoute
+  '/api/voz': typeof ApiVozRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/cartola' | '/api/clara'
+  fullPaths: '/' | '/api/cartola' | '/api/clara' | '/api/voz'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/cartola' | '/api/clara'
-  id: '__root__' | '/' | '/api/cartola' | '/api/clara'
+  to: '/' | '/api/cartola' | '/api/clara' | '/api/voz'
+  id: '__root__' | '/' | '/api/cartola' | '/api/clara' | '/api/voz'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiCartolaRoute: typeof ApiCartolaRoute
   ApiClaraRoute: typeof ApiClaraRoute
+  ApiVozRoute: typeof ApiVozRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiClaraRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/voz': {
+      id: '/api/voz'
+      path: '/api/voz'
+      fullPath: '/api/voz'
+      preLoaderRoute: typeof ApiVozRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiCartolaRoute: ApiCartolaRoute,
   ApiClaraRoute: ApiClaraRoute,
+  ApiVozRoute: ApiVozRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

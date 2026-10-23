@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Camera, FileText, Wind, Home as HomeIcon, Play, Pause, Eye, EyeOff,
-  ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, Pill, Shirt, MessageCircle, Send,
+  ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, Pill, Shirt, MessageCircle, Send, Loader2, Volume2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -162,7 +162,7 @@ function Medidor({ cartola, onLoad }: { cartola: Cartola | null; onLoad: (c: Car
         <p className="font-semibold">Tu cuenta {c.name.split(" /")[0]} está al día y tu mamá está protegida. Vamos a ver cuánto aire le ganamos al banco este mes.</p>
       </div>
 
-      <VoiceNote />
+      <VoiceNote text={`Hola Paty, soy Clara. Ya revisé tu cartola de ${c.name.split(" /")[0]} por ti, para que no pases el mal rato sola. Respira tranquila: tu cuenta está al día y esto tiene arreglo. Debes ${clp(c.debt).replace("$", "")} pesos, y si pagas solo el mínimo de ${clp(c.min).replace("$", "")}, casi ${clp(c.interest).replace("$", "")} se van en intereses para el banco. Pero si esta semana sumas lo de un par de ventas del catálogo, empiezas a ganarle días de aire. Vamos paso a paso, yo te acompaño.`} />
 
       <div className="rounded-3xl bg-card p-5 shadow-soft">
         <p className="font-extrabold">¿Cómo estuvieron tus ventas de catálogo esta semana?</p>
@@ -223,31 +223,72 @@ function Medidor({ cartola, onLoad }: { cartola: Cartola | null; onLoad: (c: Car
   );
 }
 
-function VoiceNote() {
-  const [playing, setPlaying] = useState(false);
+const audioCache = new Map<string, string>();
+let current: HTMLAudioElement | null = null;
+
+function useSpeech(text: string) {
+  const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
   const [p, setP] = useState(0);
-  useEffect(() => {
-    if (!playing) return;
-    const id = setInterval(() => setP((v) => { if (v >= 60) { setPlaying(false); return 0; } return v + 1; }), 1000);
-    return () => clearInterval(id);
-  }, [playing]);
+  const [err, setErr] = useState<string | null>(null);
+  const ref = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => () => { ref.current?.pause(); }, []);
+  async function toggle() {
+    if (state === "playing") { ref.current?.pause(); setState("idle"); return; }
+    if (state === "loading") return;
+    setErr(null);
+    try {
+      let url = audioCache.get(text);
+      if (!url) {
+        setState("loading");
+        const res = await fetch("/api/voz", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+        if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || "No pude generar la voz"); }
+        url = URL.createObjectURL(await res.blob()); audioCache.set(text, url);
+      }
+      current?.pause();
+      const a = ref.current && ref.current.src === url ? ref.current : new Audio(url);
+      ref.current = a; current = a;
+      a.ontimeupdate = () => setP(a.duration ? a.currentTime / a.duration : 0);
+      a.onended = () => { setState("idle"); setP(0); };
+      a.onpause = () => setState((s) => (s === "playing" ? "idle" : s));
+      await a.play(); setState("playing");
+    } catch (x) { setState("idle"); setErr(x instanceof Error ? x.message : "No pude generar la voz"); }
+  }
+  return { state, p, err, toggle, time: ref.current ? Math.floor(ref.current.currentTime) : 0 };
+}
+
+function VoiceNote({ text }: { text: string }) {
+  const { state, p, err, toggle, time } = useSpeech(text);
   const bars = [4, 9, 14, 7, 12, 18, 10, 6, 15, 11, 8, 16, 5, 12, 9, 14, 7, 10, 13, 6, 11, 8];
   return (
-    <div className="flex items-center gap-3 rounded-3xl bg-calm p-4 text-calm-foreground">
-      <button onClick={() => setPlaying(!playing)} aria-label={playing ? "Pausar" : "Escuchar"}
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-        {playing ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5" />}
-      </button>
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1 text-sm font-bold"><Mic className="h-4 w-4" /> Escuchar resumen de voz de Clara (1 min)</p>
-        <div className="mt-2 flex h-5 items-end gap-0.5">
-          {bars.map((h, i) => (
-            <span key={i} className={`w-1 rounded-full transition-colors ${i / bars.length < p / 60 ? "bg-secondary" : "bg-secondary/30"}`} style={{ height: h }} />
-          ))}
-          <span className="ml-2 text-xs font-semibold">0:{String(p % 60).padStart(2, "0")}</span>
+    <div className="rounded-3xl bg-calm p-4 text-calm-foreground">
+      <div className="flex items-center gap-3">
+        <button onClick={toggle} aria-label={state === "playing" ? "Pausar" : "Escuchar"}
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+          {state === "loading" ? <Loader2 className="h-5 w-5 animate-spin" /> : state === "playing" ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5" />}
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1 text-sm font-bold"><Mic className="h-4 w-4" /> {state === "loading" ? "Clara está grabando tu audio…" : "Escuchar resumen de voz de Clara"}</p>
+          <div className="mt-2 flex h-5 items-end gap-0.5">
+            {bars.map((h, i) => (
+              <span key={i} className={`w-1 rounded-full transition-colors ${i / bars.length < p ? "bg-secondary" : "bg-secondary/30"}`} style={{ height: h }} />
+            ))}
+            <span className="ml-2 text-xs font-semibold">0:{String(time % 60).padStart(2, "0")}</span>
+          </div>
         </div>
       </div>
+      {err && <p className="mt-2 text-sm font-semibold">{err}</p>}
     </div>
+  );
+}
+
+function SpeakButton({ text }: { text: string }) {
+  const { state, toggle, err } = useSpeech(text);
+  return (
+    <button onClick={toggle} title={err ?? undefined} aria-label="Escuchar a Clara"
+      className="mt-1 flex items-center gap-1 text-xs font-bold text-muted-foreground">
+      {state === "loading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : state === "playing" ? <Pause className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+      {err ? "No se pudo" : state === "playing" ? "Pausar" : "Escuchar"}
+    </button>
   );
 }
 
@@ -379,10 +420,11 @@ function ClaraChat() {
           </div>
         )}
         {msgs.map((m, i) => (
-          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex"}>
+          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex flex-col items-start"}>
             <p className={`max-w-[85%] whitespace-pre-wrap rounded-3xl p-4 ${m.role === "user" ? "rounded-tr-md bg-primary text-primary-foreground" : "rounded-tl-md bg-accent text-accent-foreground"}`}>
               {m.content || "…"}
             </p>
+            {m.role === "assistant" && m.content && !(busy && i === msgs.length - 1) && <SpeakButton text={m.content} />}
           </div>
         ))}
         {busy && msgs.at(-1)?.role === "user" && <p className="w-fit rounded-3xl bg-accent px-4 py-3 text-accent-foreground">Clara está escribiendo…</p>}
