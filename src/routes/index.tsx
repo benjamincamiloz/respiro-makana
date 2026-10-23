@@ -223,6 +223,7 @@ function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara }: { mood: Mood
       )}
 
       <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">O elige una cartola de ejemplo</p>
+      <p className="text-xs text-muted-foreground">Ninguna de estas es tu cuenta: son datos ficticios para probar la app sin subir nada.</p>
       {CARTOLAS.map((c) => (
         <button key={c.id} onClick={() => onLoad(c)}
           className="flex w-full items-center gap-3 rounded-3xl border-2 border-dashed border-secondary/40 bg-calm px-5 py-4 text-left font-bold text-calm-foreground transition active:scale-95">
@@ -305,10 +306,10 @@ function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: Moo
           ? "Hoy solo lo esencial: cuánto pagar y cuánto aire ganas. La letra chica puede esperar otro día."
           : mood === "preocupada"
             ? "No estás sola en esto. Un paso a la vez: primero tus ventas, después el pago."
-            : `Tu cuenta ${c.name.split(" /")[0]} está al día y tu mamá está protegida. Vamos a ver cuánto aire le ganamos al banco este mes.`}</p>
+            : `Tu ${c.short} está al día y tu mamá está protegida. Vamos a ver cuánto aire le ganamos al banco este mes.`}</p>
       </div>
 
-      <VoiceNote text={`Hola Paty, soy Clara. Ya revisé tu cartola de ${c.name.split(" /")[0]} por ti, para que no pases el mal rato sola. Respira tranquila: tu cuenta está al día y esto tiene arreglo. Debes ${clp(c.debt).replace("$", "")} pesos, y si pagas solo el mínimo de ${clp(c.min).replace("$", "")}, casi ${clp(c.interest).replace("$", "")} se van en intereses para el banco. Pero si esta semana sumas lo de un par de ventas del catálogo, empiezas a ganarle días de aire. Vamos paso a paso, yo te acompaño.`} />
+      <VoiceNote text={`Hola Paty, soy Clara. Ya revisé tu cartola de ${c.short} por ti, para que no pases el mal rato sola. Respira tranquila: tu cuenta está al día y esto tiene arreglo. Debes ${clp(c.debt).replace("$", "")} pesos, y si pagas solo el mínimo de ${clp(c.min).replace("$", "")}, casi ${clp(c.interest).replace("$", "")} se van en intereses para el banco. Pero si esta semana sumas lo de un par de ventas del catálogo, empiezas a ganarle días de aire. Vamos paso a paso, yo te acompaño.`} />
 
       <div className="rounded-3xl bg-card p-5 shadow-soft">
         <p className="font-extrabold">¿Cómo estuvieron tus ventas de catálogo esta semana?</p>
@@ -495,7 +496,7 @@ function Camino({ mood }: { mood: MoodId | null }) {
       if (raw) setExtra(Math.max(0, Number(JSON.parse(raw)) || 0));
     } catch { /* sin camino guardado aún */ }
   }, []);
-  const debt = CARTOLAS[0]!.debt; // CMR Falabella: $850.000
+  const debt = CARTOLAS[0]!.debt; // ejemplo ficticio
   const tramo = debt / PARADAS;
   const done = Math.min(PARADAS, Math.floor(extra / tramo));
   const restante = Math.max(0, debt - Math.min(extra, debt));
@@ -532,7 +533,7 @@ function Camino({ mood }: { mood: MoodId | null }) {
                     {reached ? <Check className="h-5 w-5" /> : n}
                   </span>
                   <span className={`absolute left-[calc(50%+2rem)] whitespace-nowrap text-sm font-semibold ${next ? "text-primary" : "text-muted-foreground"}`}>
-                    {n === PARADAS ? "¡Libre de la CMR!" : next ? "Tu próxima parada" : reached ? "Ya pasaste" : ""}
+                    {n === PARADAS ? "¡Libre de la tarjeta!" : next ? "Tu próxima parada" : reached ? "Ya pasaste" : ""}
                   </span>
                 </div>
               );
