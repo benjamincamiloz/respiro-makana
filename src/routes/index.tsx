@@ -91,6 +91,10 @@ function App() {
           <Inicio mood={mood} onChangeMood={() => setScreen("animo")} onLoad={load} onOpenSos={() => setSos(true)} onClara={() => setScreen("clara")} />
         ) : screen === "clara" ? (
           <ClaraChat mood={mood} cartola={cartola} onPause={() => setSos(true)} onPayments={() => setScreen("medidor")} onStatement={() => setScreen("inicio")} />
+        ) : screen === "frasco" ? (
+          <Frasco mood={mood} />
+        ) : screen === "camino" ? (
+          <Camino mood={mood} />
         ) : (
           <Medidor cartola={cartola} mood={mood} onLoad={load} />
         )}
@@ -107,10 +111,12 @@ function App() {
             {[
               { id: "inicio" as const, label: "Inicio", icon: HomeIcon },
               { id: "medidor" as const, label: "Mi aire", icon: Wind },
+              { id: "frasco" as const, label: "Frasco", icon: PiggyBank },
+              { id: "camino" as const, label: "Camino", icon: MapPin },
               { id: "clara" as const, label: "Clara", icon: MessageCircle },
             ].map((t) => (
               <button key={t.id} onClick={() => setScreen(t.id)}
-                className={`flex flex-1 flex-col items-center gap-1 py-3 text-sm font-bold transition ${screen === t.id ? "text-primary" : "text-muted-foreground"}`}>
+                className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-xs font-bold transition ${screen === t.id ? "text-primary" : "text-muted-foreground"}`}>
                 <t.icon className="h-6 w-6" /> {t.label}
               </button>
             ))}
