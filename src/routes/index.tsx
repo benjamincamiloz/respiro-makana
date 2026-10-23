@@ -92,7 +92,7 @@ function App() {
         ) : screen === "camino" ? (
           <Camino mood={mood} />
         ) : (
-          <Medidor cartola={cartola} mood={mood} onLoad={load} />
+          <Medidor cartola={cartola} mood={mood} goInicio={() => setScreen("inicio")} />
         )}
       </main>
 
@@ -246,7 +246,7 @@ function Animo({ onPick }: { onPick: (m: MoodId) => void }) {
 
 type Ventas = "bajas" | "normales" | "buenas";
 
-function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: MoodId | null; onLoad: (c: Cartola) => void }) {
+function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: MoodId | null; goInicio: () => void }) {
   const [ventas, setVentas] = useState<Ventas | null>(null);
   const [extra, setExtra] = useState(2 * SALE);
   const [detail, setDetail] = useState(false);
@@ -263,7 +263,7 @@ function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: Moo
       <div className="animate-rise space-y-4 pt-16 text-center">
         <Wind className="mx-auto h-12 w-12 text-primary" />
         <p className="text-lg">Aún no tenemos tu cartola. Sin apuro.</p>
-        <button onClick={() => onLoad(CARTOLAS[0]!)} className="rounded-full bg-primary px-6 py-4 font-bold text-primary-foreground">Usar cartola de ejemplo</button>
+        <button onClick={goInicio} className="rounded-full bg-primary px-6 py-4 font-bold text-primary-foreground">Subir mi cartola</button>
       </div>
     );
   }
