@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
-  Camera, FileText, Wind, Home as HomeIcon, Heart, Play, Pause, Eye, EyeOff,
+  Camera, FileText, Wind, Home as HomeIcon, Play, Pause, Eye, EyeOff,
   ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, BookOpen, Pill, Shirt,
 } from "lucide-react";
 
