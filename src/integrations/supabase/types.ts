@@ -14,7 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clara_messages: {
+        Row: {
+          content: string
+          created_at: string
+          device_id: string
+          id: string
+          role: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          device_id: string
+          id?: string
+          role: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          device_id?: string
+          id?: string
+          role?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
