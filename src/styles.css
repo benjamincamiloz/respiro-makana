@@ -182,3 +182,6 @@
 @keyframes rise { from { opacity:0; transform: translateY(10px) } to { opacity:1; transform:none } }
 @utility animate-rise { animation: rise .45s ease-out both; }
 @layer base { body { font-family: var(--font-sans); font-size: 17px; } h1,h2,h3 { font-family: var(--font-display); } }
+:root { --surface: oklch(0.975 0.008 170); }
+@theme inline { --color-surface: var(--surface); }
+input[type=range]::-webkit-slider-thumb { width: 26px; height: 26px; }
