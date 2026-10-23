@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { applyWeek, weekKey, type PisoState } from "@/lib/piso";
 import type { LucideIcon } from "lucide-react";
 import {
   Camera, FileText, Wind, Home as HomeIcon, Play, Pause, Eye, EyeOff,
@@ -221,6 +222,14 @@ function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: Moo
   const [ventas, setVentas] = useState<Ventas | null>(null);
   const [extra, setExtra] = useState(2 * SALE);
   const [detail, setDetail] = useState(false);
+  const [pisoState, setPisoState] = useState<PisoState | null>(null);
+  const [celebrate, setCelebrate] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("respiro-piso");
+      if (raw) setPisoState(JSON.parse(raw) as PisoState);
+    } catch { /* sin piso guardado aún */ }
+  }, []);
   if (!cartola) {
     return (
       <div className="animate-rise space-y-4 pt-16 text-center">
@@ -231,10 +240,21 @@ function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: Moo
     );
   }
   const c = cartola;
-  const maxSales = ventas === "buenas" ? 3 : 2;
+  const piso = pisoState?.piso ?? 0;
+  const maxExtra = piso + (ventas === "buenas" ? 3 : 2);
   const { days, saved } = calc(extra, c);
   const sales = Math.round(extra / SALE);
-  const pick = (v: Ventas) => { setVentas(v); setExtra(v === "buenas" ? 3 * SALE : 2 * SALE); };
+  const record = (stepVentas: number) => {
+    const { state, pisoUp } = applyWeek(pisoState, weekKey(), stepVentas);
+    setPisoState(state);
+    try { localStorage.setItem("respiro-piso", JSON.stringify(state)); } catch { /* sin almacenamiento */ }
+    if (pisoUp) setCelebrate(true);
+  };
+  const pick = (v: Ventas) => {
+    setVentas(v);
+    if (v === "bajas") { setExtra(0); record(0); }
+    else { setExtra((piso + 1) * SALE); record(piso + 1); }
+  };
 
   return (
     <section className="animate-rise space-y-5">
@@ -259,11 +279,26 @@ function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: Moo
         </div>
       </div>
 
+      {celebrate && piso > 0 && (
+        <div className="animate-rise rounded-3xl bg-accent p-5 text-center text-accent-foreground">
+          <Wind className="mx-auto h-8 w-8" />
+          <p className="mt-2 text-lg font-bold">¡Tu piso subió!</p>
+          <p className="mt-1 text-sm">Llevas semanas seguidas sumando tu paso. Tu pago de base ahora es <b>{clp(c.min + piso * SALE)}</b>, para siempre. Así, sin apuro, se sale del bucle.</p>
+        </div>
+      )}
+      {piso > 0 && ventas !== "bajas" && (
+        <div className="flex items-center gap-3 rounded-3xl bg-calm p-4 text-calm-foreground">
+          <Wind className="h-6 w-6 shrink-0" />
+          <p className="text-sm font-semibold">Tu piso de aire: pagas <b>{clp(c.min + piso * SALE)}</b> de base, con {piso} {piso === 1 ? "venta" : "ventas"} ya sumadas. Ya no tienes que pensarlo.</p>
+        </div>
+      )}
+
       {ventas === "bajas" && (
         <div className="animate-rise space-y-3 rounded-3xl bg-calm p-6 text-center text-calm-foreground">
           <ShieldCheck className="mx-auto h-10 w-10" />
           <p className="text-lg font-bold">Esta semana protegemos tu caja: pagamos el mínimo seguro y no sumamos ninguna cuota nueva.</p>
           <p>Pagas <b>{clp(c.min)}</b>. Sin sobregirarte. La próxima semana vemos si ganamos más aire.</p>
+          {piso > 0 && <p className="text-sm">Y tu piso queda guardado: cuando la semana mejore, seguimos desde ahí.</p>}
         </div>
       )}
 
@@ -279,11 +314,11 @@ function Medidor({ cartola, mood, onLoad }: { cartola: Cartola | null; mood: Moo
           </div>
           <p className="text-lg">Pagas <b>{clp(c.min + extra)}</b> este mes</p>
           <p className="text-muted-foreground">{saved > 0 ? <>Te ahorras <b className="text-primary">{clp(saved)}</b> en intereses</> : <>Le regalas {clp(c.interest)} de interés al banco</>}</p>
-          <input type="range" min={0} max={maxSales * SALE} step={SALE} value={Math.min(extra, maxSales * SALE)}
+          <input type="range" min={piso * SALE} max={maxExtra * SALE} step={SALE} value={Math.min(Math.max(extra, piso * SALE), maxExtra * SALE)}
             onChange={(e) => setExtra(Number(e.target.value))} aria-label="Ventas extra destinadas al pago"
             className="mt-6 h-3 w-full cursor-pointer appearance-none rounded-full bg-muted accent-primary" />
           <div className="mt-1 flex justify-between text-xs font-semibold text-muted-foreground">
-            {Array.from({ length: maxSales + 1 }, (_, i) => <span key={i}>{i === 0 ? "Mínimo" : `${i} venta${i > 1 ? "s" : ""}`}</span>)}
+            {Array.from({ length: maxExtra - piso + 1 }, (_, i) => <span key={i}>{i === 0 ? (piso > 0 ? "Tu piso" : "Mínimo") : `+${i} venta${i > 1 ? "s" : ""}`}</span>)}
           </div>
           {extra > 0 && (
             <div className="mt-5 flex gap-3 rounded-3xl bg-warm p-4 text-left text-warm-foreground">
