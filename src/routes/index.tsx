@@ -162,7 +162,7 @@ function Medidor({ cartola, onLoad }: { cartola: Cartola | null; onLoad: (c: Car
         <p className="font-semibold">Tu cuenta {c.name.split(" /")[0]} está al día y tu mamá está protegida. Vamos a ver cuánto aire le ganamos al banco este mes.</p>
       </div>
 
-      <VoiceNote />
+      <VoiceNote text={`Hola Paty, soy Clara. Ya revisé tu cartola de ${c.name.split(" /")[0]} por ti, para que no pases el mal rato sola. Respira tranquila: tu cuenta está al día y esto tiene arreglo. Debes ${clp(c.debt).replace("$", "")} pesos, y si pagas solo el mínimo de ${clp(c.min).replace("$", "")}, casi ${clp(c.interest).replace("$", "")} se van en intereses para el banco. Pero si esta semana sumas lo de un par de ventas del catálogo, empiezas a ganarle días de aire. Vamos paso a paso, yo te acompaño.`} />
 
       <div className="rounded-3xl bg-card p-5 shadow-soft">
         <p className="font-extrabold">¿Cómo estuvieron tus ventas de catálogo esta semana?</p>
