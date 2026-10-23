@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { applyWeek, weekKey, type PisoState } from "@/lib/piso";
+import { claraWelcome } from "@/lib/clara";
+import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
 import {
   Camera, FileText, Wind, Home as HomeIcon, Play, Pause, Eye, EyeOff,
@@ -87,7 +89,7 @@ function App() {
         ) : screen === "inicio" ? (
           <Inicio mood={mood} onChangeMood={() => setScreen("animo")} onLoad={load} onOpenSos={() => setSos(true)} onClara={() => setScreen("clara")} />
         ) : screen === "clara" ? (
-          <ClaraChat mood={mood} />
+          <ClaraChat mood={mood} cartola={cartola} onPause={() => setSos(true)} onPayments={() => setScreen("medidor")} onStatement={() => setScreen("inicio")} />
         ) : (
           <Medidor cartola={cartola} mood={mood} onLoad={load} />
         )}
@@ -495,7 +497,7 @@ function getDevice() {
   return id;
 }
 
-function ClaraChat({ mood }: { mood: MoodId | null }) {
+function ClaraChat({ mood, cartola, onPause, onPayments, onStatement }: { mood: MoodId | null; cartola: Cartola | null; onPause: () => void; onPayments: () => void; onStatement: () => void }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -514,7 +516,7 @@ function ClaraChat({ mood }: { mood: MoodId | null }) {
     setText(""); setErr(null); setBusy(true);
     setMsgs((m) => [...m, { role: "user", content: v }]);
     try {
-      const res = await fetch("/api/clara", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ device: getDevice(), text: v, mood: mood ?? null }) });
+      const res = await fetch("/api/clara", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ device: getDevice(), text: v, mood: mood ?? null, statement: cartola ? { name: cartola.name, debt: cartola.debt, min: cartola.min, interest: cartola.interest } : null }) });
       if (!res.ok || !res.body) { const j = await res.json().catch(() => ({})); throw new Error(j.error || "Clara no pudo responder"); }
       const reader = res.body.getReader(); const dec = new TextDecoder(); let acc = "";
       setMsgs((m) => [...m, { role: "assistant", content: "" }]);
@@ -530,26 +532,28 @@ function ClaraChat({ mood }: { mood: MoodId | null }) {
     } finally { setBusy(false); inputRef.current?.focus(); }
   }
 
-  const hello = mood === "agobiada" ? "Te noté agobiada hoy, Paty. Aquí nadie te va a apurar: cuéntame qué pesa más, aunque sea chiquito."
-    : mood === "preocupada" ? "Te noté preocupada hoy. Nada de lo que veamos aquí te va a asustar: cuéntame qué te tiene inquieta."
-    : mood === "masomenos" ? "Hola Paty, ¿un día más o menos, no? Estoy contigo igual. Cuéntame cómo va, sin apuro."
-    : "¡Qué bueno verte tranquila hoy, Paty! Si quieres, aprovechamos la calma para dar un pasito juntos.";
-  const ideas = mood === "agobiada" ? ["Me siento sobrepasada con todo", "No quiero mirar la cartola hoy", "Ayúdame a respirar"]
-    : mood === "preocupada" ? ["Me llegó la cartola y me da susto abrirla", "¿Cómo le gano días de aire al banco?", "Esta semana vendí poco"]
-    : mood === "masomenos" ? ["Me siento con poca energía esta semana", "No quiero pensar en las cuotas hoy", "¿Qué es lo más urgente?"]
-    : ["¿Cuánto paga de más si pago solo el mínimo?", "Quiero comprarle zapatillas a mi nieto en 6 cuotas", "Esta semana vendí poco"];
+  const hello = claraWelcome(mood);
+  const ideas = mood === "agobiada" ? ["Necesito bajar el ritmo", "Me angustia comprar los remedios de mi mamá", "Hoy no quiero mirar cifras"]
+    : mood === "preocupada" ? ["¿Qué debo cuidar antes de pagar?", "Esta semana vendí poco", "Pago y mi deuda no baja"]
+    : mood === "masomenos" ? ["Necesito cuidar mi descanso", "Ayúdame a elegir un paso para hoy", "Tengo un gasto de remedios que viene"]
+    : ["Quiero ordenar mi próximo pago", "¿Podría usar algún beneficio para los remedios?", "¿Cómo avanzo sin volver a endeudarme?"];
 
   return (
     <section className="animate-rise flex min-h-[60vh] flex-col">
-      <div className="mb-4 flex items-center gap-3 rounded-3xl bg-card p-4 shadow-soft">
+      <div className="mb-4 flex items-center gap-3 border-b pb-4">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground font-display text-xl">C</div>
-        <p className="font-semibold">Clara<br /><span className="text-sm text-muted-foreground">Te acompaña, sin juzgarte</span></p>
+        <p className="font-semibold">Clara<br /><span className="text-sm text-muted-foreground">Tu guía de bienestar · IA</span></p>
+      </div>
+      <div className="mb-4 flex flex-wrap gap-2" aria-label="Herramientas de bienestar">
+        <Button variant="outline" onClick={onPause}><Moon /> Mi pausa</Button>
+        <Button variant="outline" onClick={onPayments}><Wind /> Mi aire</Button>
+        <Button variant="outline" onClick={onStatement}><FileText /> Mi cartola</Button>
       </div>
       <div className="flex-1 space-y-3">
         {msgs.length === 0 && (
           <div className="space-y-2">
             <p className="rounded-3xl rounded-tl-md bg-accent p-4 text-accent-foreground">{hello}</p>
-            {ideas.map((i) => <button key={i} onClick={() => send(i)} className="block w-full rounded-2xl border bg-card px-4 py-3 text-left text-sm font-semibold">{i}</button>)}
+            {ideas.map((i) => <Button key={i} variant="outline" onClick={() => send(i)} disabled={busy} className="h-auto w-full justify-between whitespace-normal py-3 text-left">{i}<ArrowRight className="shrink-0" /></Button>)}
           </div>
         )}
         {msgs.map((m, i) => (
@@ -568,7 +572,7 @@ function ClaraChat({ mood }: { mood: MoodId | null }) {
         <textarea ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} rows={1}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(text); } }}
           placeholder="Escríbele a Clara…" className="max-h-32 flex-1 resize-none bg-transparent px-3 py-2 outline-none" />
-        <button disabled={busy || !text.trim()} aria-label="Enviar" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-50"><Send className="h-5 w-5" /></button>
+        <Button type="submit" disabled={busy || !text.trim()} aria-label="Enviar" size="icon" className="h-11 w-11 shrink-0 rounded-full"><Send className="h-5 w-5" /></Button>
       </form>
     </section>
   );
