@@ -1,4 +1,7 @@
 # Respiro roadmap
+- [x] Entregar video de gráfica animada (20 segundos, apertura/cierre; escenas revisadas, audio medido pero no escuchado).
+- [x] Corregir nombre de banco ausente en audio y pantalla de cartola (cartola y voz reales respondieron correctamente).
+- [x] Clara conversa sobre la mamá y el entorno de cuidado sin asumir datos ni insistir (respuesta real reconoce cansancio y pregunta si comparte el cuidado).
 - [x] Chat con Clara (una conversación, guardada en la nube)
 - [x] Lectura real de la cartola con IA
 - [x] Cartola de ejemplo (PDF) con cifras realistas para probar la lectura

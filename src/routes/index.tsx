@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { applyWeek, weekKey, type PisoState } from "@/lib/piso";
 import { APORTE, aportar, rescatar, type FrascoState } from "@/lib/frasco";
-import { claraWelcome } from "@/lib/clara";
+import { claraWelcome, statementName, statementVoiceSummary } from "@/lib/clara";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/")({
 const clp = (n: number) => "$" + Math.round(n).toLocaleString("es-CL");
 const SALE = 9000;
 
-type Cartola = { id: string; name: string; short: string; debt: number; min: number; interest: number };
+type Cartola = { id: string; name: string; debt: number; min: number; interest: number };
 
 function calc(extra: number, c: Cartola) {
   const r = extra / SALE; // ventas
@@ -292,10 +292,10 @@ function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: M
           ? "Hoy solo lo esencial: cuánto pagar y cuánto aire ganas. La letra chica puede esperar otro día."
           : mood === "preocupada"
             ? "No estás sola en esto. Un paso a la vez: primero tus ventas, después el pago."
-            : `Tu ${c.short} está al día y tu mamá está protegida. Vamos a ver cuánto aire le ganamos al banco este mes.`}</p>
+            : `${statementName(c.name) ? `Miremos tu cartola de ${statementName(c.name)} con calma.` : "Miremos tu cartola con calma."} Antes de elegir un pago, cuidemos lo que necesitan tu mamá, tu casa y tú.`}</p>
       </div>
 
-      <VoiceNote mood={mood} text={`${claraWelcome(mood)} ${mood === "agobiada" ? "Tu cartola puede esperar hasta que quieras mirarla." : `Cuando quieras, podemos revisar tu cartola de ${c.short}. El saldo informado es ${clp(c.debt).replace("$", "")} pesos y el pago mínimo es ${clp(c.min).replace("$", "")} pesos. Antes de pensar en pagar más, cuidemos lo que necesitas para la casa y los remedios. Vamos paso a paso.`}`} />
+      <VoiceNote mood={mood} text={statementVoiceSummary(mood, c)} />
 
       <div className="rounded-3xl bg-card p-5 shadow-soft">
         <p className="font-extrabold">¿Cómo estuvieron tus ventas de catálogo esta semana?</p>
@@ -758,7 +758,7 @@ function ClaraChat({ mood, cartola, onPause, onPayments, onStatement }: { mood: 
     : mood === "preocupada" ? ["¿Qué debo cuidar antes de pagar?", "Esta semana vendí poco", "Pago y mi deuda no baja"]
     : mood === "masomenos" ? ["Necesito cuidar mi descanso", "Ayúdame a elegir un paso para hoy", "Tengo un gasto de remedios que viene"]
     : ["Quiero ordenar mi próximo pago", "¿Podría usar algún beneficio para los remedios?", "¿Cómo avanzo sin volver a endeudarme?"];
-  const ideas = [...base, "Quiero comprar algo, ¿lo necesito de verdad?"];
+  const ideas = ["Quiero conversar sobre cómo está mi mamá", "Estoy cansada de cuidar y necesito un respiro", "Quiero organizar el cuidado con mi familia", ...base, "Quiero comprar algo, ¿lo necesito de verdad?"];
 
   return (
     <section className="animate-rise flex min-h-[60vh] flex-col">
