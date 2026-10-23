@@ -1,4 +1,4 @@
 # Respiro roadmap
-- [ ] Chat con Clara (una conversación, guardada en la nube)
-- [ ] Lectura real de la cartola con IA
-- [ ] Cartola de ejemplo (PDF) con cifras realistas para probar la lectura
+- [x] Chat con Clara (una conversación, guardada en la nube)
+- [x] Lectura real de la cartola con IA
+- [x] Cartola de ejemplo (PDF) con cifras realistas para probar la lectura
