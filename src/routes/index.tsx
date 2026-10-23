@@ -104,12 +104,21 @@ function App() {
   );
 }
 
-function Inicio({ onLoad }: { onLoad: (c: Cartola) => void }) {
+function Inicio({ mood, onChangeMood, onLoad }: { mood: MoodId | null; onChangeMood: () => void; onLoad: (c: Cartola) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const m = mood ? MOODS.find((x) => x.id === mood) : null;
   return (
     <section className="animate-rise space-y-6">
+      {m && (
+        <button onClick={onChangeMood}
+          className="flex w-full items-center gap-3 rounded-3xl bg-calm px-4 py-3 text-left text-calm-foreground transition active:scale-95">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/15"><m.icon className="h-5 w-5" /></span>
+          <span className="text-sm font-semibold">Hoy te sientes <b>{m.label.toLowerCase()}</b></span>
+          <span className="ml-auto text-xs font-bold underline underline-offset-2">Cambiar</span>
+        </button>
+      )}
       <div className="flex items-center gap-3 rounded-3xl bg-card p-4 shadow-soft">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"><User className="h-6 w-6" /></div>
         <p className="font-semibold">Patricia, 58 años<br /><span className="text-sm text-muted-foreground">Cuidadora y vendedora de catálogo en Talca</span></p>
@@ -119,6 +128,7 @@ function Inicio({ onLoad }: { onLoad: (c: Cartola) => void }) {
         <Wind className="relative h-12 w-12 text-primary" />
       </div>
       <h1 className="text-center text-3xl leading-tight">Hola Patricia, respira hondo.<br /><span className="text-secondary">Cuidemos tu tranquilidad hoy.</span></h1>
+      {m && <p className="animate-rise text-center font-semibold text-secondary">{m.note}</p>}
       <p className="text-center text-muted-foreground">Sube tu cartola y yo me encargo de leerla. Tú solo verás lo que te da aire.</p>
 
       <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
@@ -151,6 +161,28 @@ function Inicio({ onLoad }: { onLoad: (c: Cartola) => void }) {
           <ArrowRight className="ml-auto h-5 w-5 shrink-0" />
         </button>
       ))}
+    </section>
+  );
+}
+
+function Animo({ onPick }: { onPick: (m: MoodId) => void }) {
+  return (
+    <section className="animate-rise flex min-h-[70vh] flex-col justify-center py-6 text-center">
+      <div className="relative mx-auto flex h-24 w-24 items-center justify-center">
+        <div className="absolute inset-0 rounded-full bg-accent animate-breathe" />
+        <Heart className="relative h-10 w-10 text-primary" />
+      </div>
+      <h1 className="mt-6 text-3xl leading-tight">¿Cómo te sientes hoy, Paty?</h1>
+      <p className="mt-2 text-muted-foreground">Sin respuesta correcta. Solo quiero saber cómo acompañarte hoy.</p>
+      <div className="mt-8 grid grid-cols-2 gap-3">
+        {MOODS.map((m) => (
+          <button key={m.id} onClick={() => onPick(m.id)}
+            className="flex flex-col items-center gap-2.5 rounded-3xl border-2 border-border bg-card p-5 shadow-soft transition hover:border-primary active:scale-95">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground"><m.icon className="h-8 w-8" /></span>
+            <span className="font-bold">{m.label}</span>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
