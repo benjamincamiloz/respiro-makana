@@ -14,3 +14,13 @@ describe("Clara statement context", () => {
     expect(statementContext({ name: "CMR", debt: Infinity, min: 42500, interest: 26300 })).not.toContain("saldo Infinity pesos");
   });
 });
+
+describe("Clara compra advice", () => {
+  it("offers home alternatives without ever suggesting borrowing", () => {
+    const alternatives = CLARA_SYSTEM.match(/sugiere alternativas sencillas en casa:[^\n]*/)?.[0] ?? "";
+    expect(alternatives).toContain("reparar");
+    expect(alternatives).toContain("reutilizar");
+    expect(alternatives).not.toContain("prestado");
+    expect(CLARA_SYSTEM).toContain("Nunca sugieras pedir prestado");
+  });
+});
