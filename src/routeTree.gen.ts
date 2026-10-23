@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiCartolaRouteImport } from './routes/api/cartola'
+import { Route as ApiClaraRouteImport } from './routes/api/clara'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCartolaRoute = ApiCartolaRouteImport.update({
+  id: '/api/cartola',
+  path: '/api/cartola',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiClaraRoute = ApiClaraRouteImport.update({
+  id: '/api/clara',
+  path: '/api/clara',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/cartola': typeof ApiCartolaRoute
+  '/api/clara': typeof ApiClaraRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/cartola': typeof ApiCartolaRoute
+  '/api/clara': typeof ApiClaraRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/cartola': typeof ApiCartolaRoute
+  '/api/clara': typeof ApiClaraRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/cartola' | '/api/clara'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/cartola' | '/api/clara'
+  id: '__root__' | '/' | '/api/cartola' | '/api/clara'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiCartolaRoute: typeof ApiCartolaRoute
+  ApiClaraRoute: typeof ApiClaraRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cartola': {
+      id: '/api/cartola'
+      path: '/api/cartola'
+      fullPath: '/api/cartola'
+      preLoaderRoute: typeof ApiCartolaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/clara': {
+      id: '/api/clara'
+      path: '/api/clara'
+      fullPath: '/api/clara'
+      preLoaderRoute: typeof ApiClaraRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiCartolaRoute: ApiCartolaRoute,
+  ApiClaraRoute: ApiClaraRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
