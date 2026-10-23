@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Camera, FileText, Wind, Home as HomeIcon, Play, Pause, Eye, EyeOff,
-  ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, Pill, Shirt,
+  ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, Pill, Shirt, MessageCircle, Send,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -33,7 +33,7 @@ function calc(extra: number, c: Cartola) {
   return { days: Math.round(r * 140 - r * r * 8), saved: Math.round(extra * (c.debt / c.min) * 0.45) };
 }
 
-type Screen = "inicio" | "medidor";
+type Screen = "inicio" | "medidor" | "clara";
 
 function App() {
   const [screen, setScreen] = useState<Screen>("inicio");
@@ -55,19 +55,20 @@ function App() {
         </div>
       </header>
       <main className="mx-auto max-w-md px-5 pb-44 pt-6">
-        {screen === "inicio" ? <Inicio onLoad={load} /> : <Medidor cartola={cartola} onLoad={load} />}
+        {screen === "inicio" ? <Inicio onLoad={load} /> : screen === "clara" ? <ClaraChat /> : <Medidor cartola={cartola} onLoad={load} />}
       </main>
 
-      <button onClick={() => setSos(true)}
+      {screen !== "clara" && <button onClick={() => setSos(true)}
         className="fixed bottom-24 left-1/2 z-20 flex w-[calc(100%-2.5rem)] max-w-sm -translate-x-1/2 items-center gap-3 rounded-full bg-warm px-5 py-3.5 text-left font-bold text-warm-foreground shadow-soft transition hover:scale-[1.02]">
         <Moon className="h-5 w-5 shrink-0" /> Pausa Nocturna (Tu momento libre)
-      </button>
+      </button>}
 
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t bg-card/95 backdrop-blur">
         <div className="mx-auto flex max-w-md">
           {[
             { id: "inicio" as const, label: "Inicio", icon: HomeIcon },
             { id: "medidor" as const, label: "Mi aire", icon: Wind },
+            { id: "clara" as const, label: "Clara", icon: MessageCircle },
           ].map((t) => (
             <button key={t.id} onClick={() => setScreen(t.id)}
               className={`flex flex-1 flex-col items-center gap-1 py-3 text-sm font-bold transition ${screen === t.id ? "text-primary" : "text-muted-foreground"}`}>
@@ -85,6 +86,7 @@ function App() {
 function Inicio({ onLoad }: { onLoad: (c: Cartola) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
   return (
     <section className="animate-rise space-y-6">
       <div className="flex items-center gap-3 rounded-3xl bg-card p-4 shadow-soft">
@@ -99,12 +101,25 @@ function Inicio({ onLoad }: { onLoad: (c: Cartola) => void }) {
       <p className="text-center text-muted-foreground">Sube tu cartola y yo me encargo de leerla. Tú solo verás lo que te da aire.</p>
 
       <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFileName(f.name); setTimeout(() => onLoad(CARTOLAS[0]!), 1200); } }} />
-      <button onClick={() => fileRef.current?.click()}
-        className="flex w-full items-center justify-center gap-3 rounded-3xl bg-primary px-6 py-6 text-xl font-extrabold text-primary-foreground shadow-soft transition active:scale-95">
-        <Camera className="h-7 w-7" /> Subir foto o PDF de cartola
+        onChange={async (e) => {
+          const f = e.target.files?.[0]; e.target.value = "";
+          if (!f) return;
+          setFileName(f.name); setErr(null);
+          try {
+            const fd = new FormData(); fd.append("file", f);
+            const res = await fetch("/api/cartola", { method: "POST", body: fd });
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.error || "No pude leerla");
+            onLoad(j as Cartola);
+          } catch (x) { setErr(x instanceof Error ? x.message : "No pude leerla"); }
+          finally { setFileName(null); }
+        }} />
+      <button onClick={() => fileRef.current?.click()} disabled={!!fileName}
+        className="flex w-full items-center justify-center gap-3 rounded-3xl bg-primary px-6 py-6 text-xl font-extrabold text-primary-foreground shadow-soft transition active:scale-95 disabled:opacity-70">
+        <Camera className="h-7 w-7" /> {fileName ? "Leyendo con calma…" : "Subir foto o PDF de cartola"}
       </button>
-      {fileName && <p className="animate-rise text-center text-sm text-muted-foreground">Leyendo “{fileName}” con calma…</p>}
+      {fileName && <p className="animate-rise text-center text-sm text-muted-foreground">Estoy leyendo “{fileName}” por ti. Puede tardar unos segundos.</p>}
+      {err && <p className="text-center text-sm font-semibold text-warm">{err}. Intenta con una foto más nítida.</p>}
 
       <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">O elige una cartola de ejemplo</p>
       {CARTOLAS.map((c) => (
@@ -304,3 +319,82 @@ function PausaSOS({ onClose }: { onClose: () => void }) {
   );
 }
 
+
+type Msg = { role: "user" | "assistant"; content: string };
+
+function getDevice() {
+  let id = localStorage.getItem("respiro-device");
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem("respiro-device", id); }
+  return id;
+}
+
+function ClaraChat() {
+  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    fetch(`/api/clara?device=${getDevice()}`).then((r) => r.json()).then((d) => Array.isArray(d) && setMsgs(d)).catch(() => {});
+    inputRef.current?.focus();
+  }, []);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy]);
+
+  async function send(t: string) {
+    const v = t.trim(); if (!v || busy) return;
+    setText(""); setErr(null); setBusy(true);
+    setMsgs((m) => [...m, { role: "user", content: v }]);
+    try {
+      const res = await fetch("/api/clara", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ device: getDevice(), text: v }) });
+      if (!res.ok || !res.body) { const j = await res.json().catch(() => ({})); throw new Error(j.error || "Clara no pudo responder"); }
+      const reader = res.body.getReader(); const dec = new TextDecoder(); let acc = "";
+      setMsgs((m) => [...m, { role: "assistant", content: "" }]);
+      for (;;) {
+        const { done, value } = await reader.read(); if (done) break;
+        acc += dec.decode(value, { stream: true });
+        setMsgs((m) => [...m.slice(0, -1), { role: "assistant", content: acc }]);
+      }
+      if (!acc.trim()) throw new Error("Clara no pudo responder");
+    } catch (x) {
+      setMsgs((m) => (m.at(-1)?.role === "assistant" && !m.at(-1)?.content ? m.slice(0, -1) : m));
+      setErr(x instanceof Error ? x.message : "Clara no pudo responder");
+    } finally { setBusy(false); inputRef.current?.focus(); }
+  }
+
+  const ideas = ["Me llegó la cartola y me da susto abrirla", "Quiero comprarle zapatillas a mi nieto en 6 cuotas", "Esta semana vendí poco"];
+
+  return (
+    <section className="animate-rise flex min-h-[60vh] flex-col">
+      <div className="mb-4 flex items-center gap-3 rounded-3xl bg-card p-4 shadow-soft">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground font-display text-xl">C</div>
+        <p className="font-semibold">Clara<br /><span className="text-sm text-muted-foreground">Te acompaña, sin juzgarte</span></p>
+      </div>
+      <div className="flex-1 space-y-3">
+        {msgs.length === 0 && (
+          <div className="space-y-2">
+            <p className="rounded-3xl rounded-tl-md bg-accent p-4 text-accent-foreground">Hola Paty, aquí estoy. Cuéntame lo que te tenga inquieta, aunque sea chiquito.</p>
+            {ideas.map((i) => <button key={i} onClick={() => send(i)} className="block w-full rounded-2xl border bg-card px-4 py-3 text-left text-sm font-semibold">{i}</button>)}
+          </div>
+        )}
+        {msgs.map((m, i) => (
+          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex"}>
+            <p className={`max-w-[85%] whitespace-pre-wrap rounded-3xl p-4 ${m.role === "user" ? "rounded-tr-md bg-primary text-primary-foreground" : "rounded-tl-md bg-accent text-accent-foreground"}`}>
+              {m.content || "…"}
+            </p>
+          </div>
+        ))}
+        {busy && msgs.at(-1)?.role === "user" && <p className="w-fit rounded-3xl bg-accent px-4 py-3 text-accent-foreground">Clara está escribiendo…</p>}
+        {err && <p className="text-sm font-semibold text-warm">{err}</p>}
+        <div ref={endRef} />
+      </div>
+      <form onSubmit={(e) => { e.preventDefault(); send(text); }} className="sticky bottom-20 mt-4 flex items-end gap-2 rounded-3xl border bg-card p-2 shadow-soft">
+        <textarea ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} rows={1}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(text); } }}
+          placeholder="Escríbele a Clara…" className="max-h-32 flex-1 resize-none bg-transparent px-3 py-2 outline-none" />
+        <button disabled={busy || !text.trim()} aria-label="Enviar" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-50"><Send className="h-5 w-5" /></button>
+      </form>
+    </section>
+  );
+}
