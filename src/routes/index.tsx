@@ -30,7 +30,7 @@ const POINTS = [
 ];
 function calc(extra: number) {
   const i = extra <= 18000 ? 0 : 1;
-  const a = POINTS[i], b = POINTS[i + 1];
+  const a = POINTS[i]!, b = POINTS[i + 1]!;
   const t = (extra - a.extra) / (b.extra - a.extra);
   return { days: Math.round(a.days + t * (b.days - a.days)), saved: Math.round(a.saved + t * (b.saved - a.saved)) };
 }
