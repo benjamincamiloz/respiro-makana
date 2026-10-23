@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { applyWeek, weekKey, type PisoState } from "@/lib/piso";
+import { APORTE, aportar, rescatar, type FrascoState } from "@/lib/frasco";
 import { claraWelcome } from "@/lib/clara";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
 import {
   Camera, FileText, Wind, Home as HomeIcon, Play, Pause, Eye, EyeOff,
   ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, Pill, Shirt, MessageCircle, Send, Loader2, Volume2,
-  Smile, Meh, Frown, Angry, Heart,
+  Smile, Meh, Frown, Angry, Heart, PiggyBank, MapPin, Flag, Check, RotateCcw,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -61,7 +62,7 @@ const REACTION: Record<MoodId, Reaction> = {
   agobiada: { title: "Primero respira", text: "Antes de mirar números, tomemos 60 segundos juntos. El resto espera.", action: "Respirar 60 segundos", kind: "sos" },
 };
 
-type Screen = "animo" | "inicio" | "medidor" | "clara";
+type Screen = "animo" | "inicio" | "medidor" | "frasco" | "camino" | "clara";
 
 function App() {
   const [screen, setScreen] = useState<Screen>("animo");
