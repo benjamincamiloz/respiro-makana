@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 - AI calls (Clara chat, statement reading) live in server routes under src/routes/api/ using src/server/gateway.server.ts; keeps the gateway key server-side.
 - No login: Clara's single conversation is stored in clara_messages keyed by a random per-browser device id, accessed only server-side with the admin client (RLS on, no policies) — demo app without accounts.
+- Keep Clara's shared conversation guidance and statement-context validation in src/lib/clara.ts; the server consumes the same context contract while the chat links only to existing Respiro tools, avoiding claims of external access or executed actions.

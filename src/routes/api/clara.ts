@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { streamText, type ModelMessage } from "ai";
 import { lovableProvider, MODEL, OPENAI_OPTS } from "@/server/gateway.server";
-
-const SYSTEM = `Eres Clara, una asistente cálida y cercana (tono de asistente social chilena) que acompaña a Patricia, 58 años, de Talca. Cuida a su mamá enferma, vive de la venta por catálogo (ingresos variables) y le angustia mirar sus deudas (tarjeta CMR Falabella ~$850.000, pago mínimo ~$42.000).
-Reglas: responde en 2 a 4 frases cortas, en español chileno sencillo, sin tecnicismos ni números en rojo. Primero valida la emoción, después ofrece un solo paso pequeño y concreto. Traduce plata a ventas del catálogo (cada venta ~$9.000) o días de aire. Si quiere comprar en cuotas por emoción, valida sin culpa y propone una alternativa más barata o esperar 60 segundos. Nunca juzgues. No uses markdown.`;
+import { CLARA_SYSTEM, moodContext, statementContext } from "@/lib/clara";
 
 export const Route = createFileRoute("/api/clara")({
   server: {
@@ -18,7 +16,7 @@ export const Route = createFileRoute("/api/clara")({
         return Response.json(data);
       },
       POST: async ({ request }) => {
-        const { device, text, mood } = (await request.json()) as { device: string; text: string; mood?: string | null };
+        const { device, text, mood, statement } = (await request.json()) as { device: string; text: string; mood?: string | null; statement?: unknown };
         if (!device || device.length < 10 || !text?.trim() || text.length > 2000)
           return Response.json({ error: "Mensaje inválido" }, { status: 400 });
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -32,11 +30,9 @@ export const Route = createFileRoute("/api/clara")({
           ...(hist ?? []).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
           { role: "user", content: text.trim() },
         ];
-        const MOOD: Record<string, string> = { tranquila: "tranquila", masomenos: "más o menos", preocupada: "preocupada", agobiada: "agobiada" };
-        const moodNote = mood && MOOD[mood] ? ` Hoy Patricia se siente ${MOOD[mood]}. Parte validando esa emoción; si está agobiada, no le entregues cifras hasta que ella pregunte y sugiérale la Pausa Nocturna de 60 segundos; si está preocupada, dale un solo paso muy pequeño; si está tranquila, puedes proponer un paso un poco más grande.` : "";
         const result = streamText({
           model: lovableProvider().responses(MODEL),
-          instructions: SYSTEM + moodNote,
+          instructions: [CLARA_SYSTEM, moodContext(mood), statementContext(statement)].join("\n\n"),
           messages,
           abortSignal: request.signal,
           providerOptions: OPENAI_OPTS,
