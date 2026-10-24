@@ -12,7 +12,7 @@ async function bf(path: string, signal: AbortSignal) {
     console.error(`BuscaFarma [${res.status}]: ${body.slice(0, 300)}`);
     throw new Error(`BuscaFarma respondió ${res.status}`);
   }
-  return (await res.json()) as Record<string, unknown>;
+  return (await res.json()) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
 const str = (v: unknown) => (typeof v === "string" ? v : "");
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/api/precios")({
           if (slug) {
             if (!/^[a-z0-9-]{1,160}$/.test(slug)) return Response.json({ error: "Remedio inválido" }, { status: 400 });
             const d = await bf(`/medicamento/${slug}.json`, request.signal);
-            const offers = (Array.isArray(d.offers) ? d.offers : []) as Record<string, unknown>[];
+            const offers = (Array.isArray(d.offers) ? d.offers : []) as Record<string, any>[];
             const ofertas = offers
               .filter((o) => o.in_stock === true && num(o.price_clp))
               .map((o) => ({ farmacia: str(o.pharmacy), precio: num(o.price_clp)!, normal: num(o.price_normal_clp), captura: str(o.captured_at), url: str(o.buy_url) }))
@@ -39,7 +39,7 @@ export const Route = createFileRoute("/api/precios")({
           }
           if (q.length < 3) return Response.json({ error: "Escribe al menos 3 letras" }, { status: 400 });
           const d = await bf(`/buscar?q=${encodeURIComponent(q)}&format=json&limit=6&sort=relevance`, request.signal);
-          const results = (Array.isArray(d.results) ? d.results : []) as Record<string, unknown>[];
+          const results = (Array.isArray(d.results) ? d.results : []) as Record<string, any>[];
           const productos = results
             .filter((r) => r.similar_result !== true && /^[a-z0-9-]+$/.test(str(r.slug)))
             .map((r) => ({ slug: str(r.slug), nombre: str(r.display_name), desde: num(r.min_price_clp), farmacias: num(r.pharmacy_count) ?? 0, web: str(r.web_url) }));
