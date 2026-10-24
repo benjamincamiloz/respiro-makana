@@ -1,7 +1,7 @@
 // "Mi semana": anticiparse a los gastos que vienen, con datos que anota ella.
 // Nada de ofertas inventadas: el precio más bajo sale de lo que ella registró.
 export type Precio = { lugar: string; monto: number };
-export type Compromiso = { id: string; nombre: string; dia: number; monto: number; remedio: boolean; precios: Precio[] };
+export type Compromiso = { id: string; nombre: string; dia: number; monto: number; remedio: boolean; precios: Precio[]; farmaco?: string };
 
 export const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
@@ -45,4 +45,11 @@ export function aviso(items: Compromiso[], hoy: number): string | null {
     return `${cuando[0].toUpperCase()}${cuando.slice(1)} toca ${c.nombre}. La última vez lo encontraste más barato en ${barato.lugar}: así te ahorras ${Math.round(ahorroPosible(c.precios)).toLocaleString("es-CL")} pesos.`;
   }
   return `${cuando[0].toUpperCase()}${cuando.slice(1)} toca ${c.nombre}. Si puedes, aparta esa plata antes de que se vaya en otra cosa.`;
+}
+
+/** Página pública de BuscaFarma para un principio activo (ej: "Losartán" → /principio-activo/losartan). */
+export function precioUrl(farmaco: string): string | null {
+  const slug = farmaco.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
+  return slug ? `https://buscafarma.cl/principio-activo/${slug}` : null;
 }

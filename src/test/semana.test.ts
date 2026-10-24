@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ahorroPosible, apartarHoy, aviso, diasHasta, masBarato, type Compromiso } from "@/lib/semana";
+import { precioUrl, ahorroPosible, apartarHoy, aviso, diasHasta, masBarato, type Compromiso } from "@/lib/semana";
 import { perfilDe, unidades } from "@/lib/perfil";
 
 const remedio: Compromiso = {
@@ -34,5 +34,12 @@ describe("Perfiles", () => {
   });
   it("vuelve a catálogo si no hay perfil", () => {
     expect(perfilDe(null).valor).toBe(9000);
+  });
+});
+
+describe("Ver precios hoy", () => {
+  it("arma el enlace del comparador sin tildes", () => {
+    expect(precioUrl("Losartán potásico")).toBe("https://buscafarma.cl/principio-activo/losartan-potasico");
+    expect(precioUrl("  ")).toBeNull();
   });
 });
