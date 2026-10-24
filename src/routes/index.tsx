@@ -406,6 +406,12 @@ function Medidor({ p, cartola, mood, goInicio }: { p: Perfil; cartola: Cartola |
           <p className="text-sm font-semibold">Tu piso de aire: pagas <b>{clp(c.min + piso * SALE)}</b> de base, con {unidades(piso, p)} ya {piso === 1 ? "sumado" : "sumados"}. Ya no tienes que pensarlo.</p>
         </div>
       )}
+      {piso === 0 && ventas !== "bajas" && (
+        <div className="rounded-3xl border-2 border-dashed border-primary/30 bg-accent/40 p-5">
+          <p className="flex items-center gap-2 text-sm font-extrabold"><Wind className="h-5 w-5" /> Tu piso de aire</p>
+          <p className="mt-1 text-sm">Si dos semanas seguidas pagas sobre el mínimo, tu piso sube en 1 {p.unidad}: ese pago se vuelve tu base para siempre y ya no tienes que volver a decidirlo. Hoy partes desde el mínimo seguro; tu primera venta extra arranca la cuenta.</p>
+        </div>
+      )}
 
       {ventas === "bajas" && (
         <div className="animate-rise space-y-3 rounded-3xl bg-calm p-6 text-center text-calm-foreground">
