@@ -5,6 +5,7 @@ import { APORTE, aportar, rescatar, type FrascoState } from "@/lib/frasco";
 import { perfilDe, PERFILES, unidades, type Perfil, type PerfilId, type PerfilState } from "@/lib/perfil";
 import { precioUrl, aviso, apartarHoy, ahorroPosible, masBarato, proximos, DIAS, type Compromiso } from "@/lib/semana";
 import { claraWelcome, statementName, statementVoiceSummary } from "@/lib/clara";
+import { ALERTAS_INICIAL, alertaDeHoy, fecha, type AlertasState } from "@/lib/alertas";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -96,7 +97,7 @@ function App() {
         {screen === "animo" ? (
           <Animo onPick={(m) => { setMood(m); setScreen("inicio"); }} />
         ) : screen === "inicio" ? (
-          <Inicio mood={mood} onChangeMood={() => setScreen("animo")} onLoad={load} onOpenSos={() => setSos(true)} onClara={() => setScreen("clara")} items={items} onSemana={() => setScreen("semana")} />
+          <Inicio mood={mood} onChangeMood={() => setScreen("animo")} onLoad={load} onOpenSos={() => setSos(true)} onClara={() => setScreen("clara")} items={items} onSemana={() => setScreen("semana")} onCamino={() => setScreen("camino")} />
         ) : screen === "clara" ? (
           <ClaraChat mood={mood} cartola={cartola} onPause={() => setSos(true)} onPayments={() => setScreen("medidor")} onStatement={() => setScreen("inicio")} />
         ) : screen === "frasco" ? (
@@ -140,7 +141,66 @@ function App() {
   );
 }
 
-function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara, items, onSemana }: { mood: MoodId | null; onChangeMood: () => void; onLoad: (c: Cartola) => void; onOpenSos: () => void; onClara: () => void; items: Compromiso[]; onSemana: () => void }) {
+function Avisos({ mood, items, onCamino }: { mood: MoodId | null; items: Compromiso[]; onCamino: () => void }) {
+  const [s, setS] = useState<AlertasState>(ALERTAS_INICIAL);
+  const [hoy, setHoy] = useState<Date | null>(null);
+  const [ajustes, setAjustes] = useState(false);
+  useEffect(() => {
+    setHoy(new Date());
+    try { const raw = localStorage.getItem("respiro-alertas"); if (raw) setS({ ...ALERTAS_INICIAL, ...(JSON.parse(raw) as Partial<AlertasState>) }); } catch { /* */ }
+  }, []);
+  if (!hoy) return null;
+  const save = (n: AlertasState) => { setS(n); try { localStorage.setItem("respiro-alertas", JSON.stringify(n)); } catch { /* */ } };
+  const f = fecha(hoy);
+  const a = alertaDeHoy(s, hoy, { agobiada: mood === "agobiada", hayRemedioMiercoles: items.some((c) => c.remedio && c.dia === 3) });
+  const cerrar = (t: string) => save({ ...s, cerradas: { ...s.cerradas, [t]: f } });
+  return (
+    <div className="space-y-3">
+      {a && (
+        <div className="animate-rise rounded-3xl border-2 border-primary/30 bg-card p-5 shadow-soft">
+          <p className="flex items-center gap-2 font-bold text-secondary"><Bell className="h-5 w-5 text-primary" /> {a.titulo}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{a.texto}</p>
+          {a.pregunta ? (
+            <div className="mt-3 flex gap-2">
+              <button onClick={() => save({ ...s, sobro: f })} className="flex-1 rounded-full bg-primary py-3 font-bold text-primary-foreground active:scale-95">Sí, sobró algo</button>
+              <button onClick={() => save({ ...s, noSobro: f })} className="flex-1 rounded-full bg-muted py-3 font-bold active:scale-95">Esta vez no</button>
+            </div>
+          ) : (
+            <div className="mt-3 flex gap-2">
+              <button onClick={() => { cerrar(a.tipo); onCamino(); }} className="flex-1 rounded-full bg-primary py-3 font-bold text-primary-foreground active:scale-95">Abonar ahora</button>
+              <button onClick={() => cerrar(a.tipo)} className="flex-1 rounded-full bg-muted py-3 font-bold active:scale-95">Hoy no</button>
+            </div>
+          )}
+        </div>
+      )}
+      {mood !== "agobiada" && (
+        <button onClick={() => save({ ...s, ventaBuena: f, cerradas: { ...s.cerradas, venta: "" } })} disabled={s.ventaBuena === f}
+          className="flex w-full items-center justify-center gap-2 rounded-3xl bg-accent px-4 py-4 font-bold text-accent-foreground transition active:scale-95 disabled:opacity-60">
+          <ShoppingBag className="h-5 w-5" /> {s.ventaBuena === f ? "Anotado: hoy vendiste más" : "Hoy vendí más de lo normal"}
+        </button>
+      )}
+      <button onClick={() => setAjustes(!ajustes)} className="mx-auto block text-sm font-bold text-muted-foreground underline">Mis avisos</button>
+      {ajustes && (
+        <div className="animate-rise space-y-3 rounded-3xl bg-card p-5 shadow-soft text-sm">
+          <label className="block font-semibold">¿Qué día del mes vence tu tarjeta?
+            <input type="number" min={1} max={31} inputMode="numeric" value={s.vence ?? ""} placeholder="Ej: 15"
+              onChange={(e) => { const v = Number(e.target.value); save({ ...s, vence: v >= 1 && v <= 31 ? Math.round(v) : null }); }}
+              className="mt-1 w-full rounded-2xl border-2 border-border bg-background px-4 py-2 outline-none focus:border-primary" />
+          </label>
+          <label className="block font-semibold">Recordatorio de la semana, cada
+            <select value={s.semanal} onChange={(e) => save({ ...s, semanal: Number(e.target.value) })}
+              className="mt-1 w-full rounded-2xl border-2 border-border bg-background px-4 py-2 outline-none focus:border-primary">
+              {DIAS.map((d, i) => <option key={d} value={i}>{d}</option>)}
+            </select>
+          </label>
+          <p className="text-muted-foreground">Si anotas tus remedios del miércoles en “Mi semana”, el jueves te pregunto si sobró algo.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara, items, onSemana, onCamino }: { mood: MoodId | null; onChangeMood: () => void; onLoad: (c: Cartola) => void; onOpenSos: () => void; onClara: () => void; items: Compromiso[]; onSemana: () => void; onCamino: () => void }) {
   const [hoy, setHoy] = useState<number | null>(null);
   useEffect(() => setHoy(new Date().getDay()), []);
   const av = hoy === null ? null : aviso(items, hoy);
@@ -207,6 +267,7 @@ function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara, items, onSeman
           <span className="text-sm font-semibold">{av} <span className="underline">Ver mi semana</span></span>
         </button>
       )}
+      <Avisos mood={mood} items={items} onCamino={onCamino} />
       <p className="text-center text-muted-foreground">Sube tu cartola y yo me encargo de leerla. Tú solo verás lo que te da aire.</p>
 
       <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"

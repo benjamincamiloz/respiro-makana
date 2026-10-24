@@ -42,9 +42,9 @@ export function aviso(items: Compromiso[], hoy: number): string | null {
   const cuando = c.en === 0 ? "hoy" : c.en === 1 ? "mañana" : `el ${DIAS[c.dia]}`;
   const barato = c.remedio ? masBarato(c.precios) : null;
   if (barato && ahorroPosible(c.precios) > 0) {
-    return `${cuando[0].toUpperCase()}${cuando.slice(1)} toca ${c.nombre}. La última vez lo encontraste más barato en ${barato.lugar}: así te ahorras ${Math.round(ahorroPosible(c.precios)).toLocaleString("es-CL")} pesos.`;
+    return `${cuando.charAt(0).toUpperCase()}${cuando.slice(1)} toca ${c.nombre}. La última vez lo encontraste más barato en ${barato.lugar}: así te ahorras ${Math.round(ahorroPosible(c.precios)).toLocaleString("es-CL")} pesos.`;
   }
-  return `${cuando[0].toUpperCase()}${cuando.slice(1)} toca ${c.nombre}. Si puedes, aparta esa plata antes de que se vaya en otra cosa.`;
+  return `${cuando.charAt(0).toUpperCase()}${cuando.slice(1)} toca ${c.nombre}. Si puedes, aparta esa plata antes de que se vaya en otra cosa.`;
 }
 
 /** Página pública de BuscaFarma para un principio activo (ej: "Losartán" → /principio-activo/losartan). */
