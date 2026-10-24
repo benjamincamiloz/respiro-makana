@@ -6,7 +6,9 @@ const BASE = "https://buscafarma.cl/ai";
 const UA = "Respiro/1.0 (+https://respira-bienestar.lovable.app)";
 
 async function bf(path: string, signal: AbortSignal) {
-  const res = await fetch(`${BASE}${path}`, { headers: { "User-Agent": UA, Accept: "application/json" }, signal });
+  const go = () => fetch(`${BASE}${path}`, { headers: { "User-Agent": UA, Accept: "application/json" }, signal });
+  let res = await go();
+  for (let i = 0; i < 2 && res.status === 403; i++) { await new Promise((r) => setTimeout(r, 900)); res = await go(); }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     console.error(`BuscaFarma [${res.status}]: ${body.slice(0, 300)}`);
