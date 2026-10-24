@@ -12,4 +12,5 @@
 - [x] Mi semana: anticipar gastos fijos (remedios del miércoles), cuánto apartar y aviso en Inicio.
 - [x] Comparar precios de farmacia anotados por ella (sin ofertas inventadas).
 - [x] Perfiles de trabajo (catálogo / app / pedidos) con valor por unidad editable.
-- [ ] Ofertas de farmacia en vivo: requiere una fuente pública de precios confiable.
+- [x] Botón "Ver precios hoy" por remedio (abre BuscaFarma).
+- [ ] Aviso automático de ofertas: requiere permiso o acuerdo con una fuente de precios.
