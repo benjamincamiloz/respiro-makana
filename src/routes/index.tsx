@@ -3,14 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import { applyWeek, weekKey, type PisoState } from "@/lib/piso";
 import { APORTE, aportar, rescatar, type FrascoState } from "@/lib/frasco";
 import { perfilDe, PERFILES, unidades, type Perfil, type PerfilId, type PerfilState } from "@/lib/perfil";
-import { aviso, apartarHoy, ahorroPosible, masBarato, proximos, DIAS, type Compromiso } from "@/lib/semana";
+import { precioUrl, aviso, apartarHoy, ahorroPosible, masBarato, proximos, DIAS, type Compromiso } from "@/lib/semana";
 import { claraWelcome, statementName, statementVoiceSummary } from "@/lib/clara";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
 import {
   Camera, FileText, Wind, Home as HomeIcon, Play, Pause, Eye, EyeOff,
   ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, Pill, Shirt, MessageCircle, Send, Loader2, Volume2,
-  CalendarDays, Plus, Trash2, Bell, Smile, Meh, Frown, Angry, Heart, PiggyBank, MapPin, Flag, Check, RotateCcw,
+  CalendarDays, Plus, ExternalLink, Trash2, Bell, Smile, Meh, Frown, Angry, Heart, PiggyBank, MapPin, Flag, Check, RotateCcw,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -890,6 +890,17 @@ function Semana({ mood, perfil, onPerfil, items, onItems }: { mood: MoodId | nul
               </div>
               {c.remedio && (
                 <div className="mt-3 space-y-2 rounded-2xl bg-muted p-3 text-sm">
+                  <label className="block text-xs font-semibold">¿Qué remedio es? (como dice la receta, ej: losartán)
+                    <input className="mt-1 w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" defaultValue={c.farmaco ?? ""}
+                      onBlur={(e) => onItems(items.map((x) => x.id === c.id ? { ...x, farmaco: e.target.value.trim().slice(0, 60) } : x))} />
+                  </label>
+                  {c.farmaco && precioUrl(c.farmaco) && (
+                    <a href={precioUrl(c.farmaco)!} target="_blank" rel="noopener noreferrer"
+                      className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-2.5 font-bold text-primary-foreground">
+                      <ExternalLink className="h-4 w-4" /> Ver precios hoy
+                    </a>
+                  )}
+                  {c.farmaco && <p className="text-xs text-muted-foreground">Se abre BuscaFarma, que compara farmacias como Dr. Simi. Revisa que coincidan la dosis y la cantidad, y anota aquí el precio que te sirva.</p>}
                   {c.precios.length === 0
                     ? <p>Anota cuánto cuesta en cada farmacia (Dr. Simi, la del barrio, la farmacia comunal). Así te muestro dónde sale más barato.</p>
                     : [...c.precios].sort((x, y) => x.monto - y.monto).map((x) => (
