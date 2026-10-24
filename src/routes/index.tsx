@@ -582,7 +582,7 @@ function Camino({ p, cartola, mood, goInicio }: { p: Perfil; cartola: Cartola | 
       )}
 
       <div className="flex justify-center gap-3 text-xs">
-        <button onClick={() => mark(extra + SALE)} className="font-semibold text-muted-foreground underline underline-offset-2">Marcar {p.unidad === "venta" ? "una" : "un"} {p.unidad} extra pagado</button>
+        <button onClick={() => mark(extra + SALE)} className="font-semibold text-muted-foreground underline underline-offset-2">Marcar {p.unidad === "venta" ? "una venta extra pagada" : `un ${p.unidad} extra pagado`}</button>
         {extra > 0 && (
           <button onClick={() => mark(0)} className="flex items-center gap-1 font-semibold text-muted-foreground underline underline-offset-2"><RotateCcw className="h-3 w-3" /> Empezar de nuevo</button>
         )}
@@ -825,6 +825,124 @@ function ClaraChat({ mood, cartola, onPause, onPayments, onStatement }: { mood: 
           placeholder="Escríbele a Clara…" className="max-h-32 flex-1 resize-none bg-transparent px-3 py-2 outline-none" />
         <Button type="submit" disabled={busy || !text.trim()} aria-label="Enviar" size="icon" className="h-11 w-11 shrink-0 rounded-full"><Send className="h-5 w-5" /></Button>
       </form>
+    </section>
+  );
+}
+
+function Semana({ mood, perfil, onPerfil, items, onItems }: { mood: MoodId | null; perfil: Perfil; onPerfil: (s: PerfilState) => void; items: Compromiso[]; onItems: (s: Compromiso[]) => void }) {
+  const [hoy, setHoy] = useState<number | null>(null);
+  useEffect(() => setHoy(new Date().getDay()), []);
+  const [adding, setAdding] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [dia, setDia] = useState(3);
+  const [monto, setMonto] = useState("");
+  const [remedio, setRemedio] = useState(true);
+  const [precioFor, setPrecioFor] = useState<string | null>(null);
+  const [lugar, setLugar] = useState("");
+  const [precio, setPrecio] = useState("");
+  const num = (v: string) => Number(v.replace(/\D/g, "")) || 0;
+  const lista = hoy === null ? [] : proximos(items, hoy);
+  const apartar = hoy === null ? 0 : apartarHoy(items, hoy);
+  const av = hoy === null ? null : aviso(items, hoy);
+  const add = () => {
+    if (!nombre.trim() || num(monto) <= 0) return;
+    onItems([...items, { id: crypto.randomUUID(), nombre: nombre.trim().slice(0, 60), dia, monto: num(monto), remedio, precios: [] }]);
+    setNombre(""); setMonto(""); setAdding(false);
+  };
+  const addPrecio = (id: string) => {
+    if (!lugar.trim() || num(precio) <= 0) return;
+    onItems(items.map((c) => c.id === id ? { ...c, precios: [...c.precios.filter((x) => x.lugar.toLowerCase() !== lugar.trim().toLowerCase()), { lugar: lugar.trim().slice(0, 40), monto: num(precio) }] } : c));
+    setLugar(""); setPrecio(""); setPrecioFor(null);
+  };
+  const field = "w-full rounded-2xl border-2 border-border bg-background px-4 py-3 outline-none focus:border-primary";
+  return (
+    <section className="animate-rise space-y-5">
+      <div className="flex items-start gap-3 rounded-3xl bg-accent p-5 text-accent-foreground">
+        <CalendarDays className="mt-1 h-7 w-7 shrink-0" />
+        <p className="font-semibold">{mood === "agobiada"
+          ? "Aquí miramos lo que viene, sin apuro. Hoy basta con saber qué día toca cada cosa."
+          : "Adelantémonos: anota lo que sí o sí viene esta semana y te aviso antes, para que la plata no se vaya en otra cosa."}</p>
+      </div>
+
+      {av && <p className="flex items-start gap-3 rounded-3xl bg-calm p-4 text-sm font-semibold text-calm-foreground"><Bell className="mt-0.5 h-5 w-5 shrink-0" /> {av}</p>}
+      {apartar > 0 && (
+        <div className="rounded-3xl bg-card p-5 text-center shadow-soft">
+          <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Para los próximos 3 días</p>
+          <p className="mt-1 font-display text-4xl text-primary">{clp(apartar)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">Si hoy entra plata, separa esto primero. Es {unidades(Math.ceil(apartar / perfil.valor), perfil)} aprox.</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {lista.length === 0 && !adding && <p className="rounded-3xl bg-card p-5 text-center text-muted-foreground shadow-soft">Aún no anotas nada. Empieza por lo que más te preocupa, como los remedios de tu mamá.</p>}
+        {lista.map((c) => {
+          const b = c.remedio ? masBarato(c.precios) : null;
+          const ah = ahorroPosible(c.precios);
+          return (
+            <div key={c.id} className="rounded-3xl bg-card p-5 shadow-soft">
+              <div className="flex items-start gap-3">
+                {c.remedio ? <Pill className="mt-0.5 h-6 w-6 shrink-0 text-primary" /> : <CalendarDays className="mt-0.5 h-6 w-6 shrink-0 text-primary" />}
+                <div className="flex-1">
+                  <p className="font-bold">{c.nombre}</p>
+                  <p className="text-sm text-muted-foreground">Cada {DIAS[c.dia]} · {c.en === 0 ? "hoy" : c.en === 1 ? "mañana" : `en ${c.en} días`} · {clp(b?.monto ?? c.monto)}</p>
+                </div>
+                <button aria-label={`Quitar ${c.nombre}`} onClick={() => onItems(items.filter((x) => x.id !== c.id))} className="text-muted-foreground"><Trash2 className="h-4 w-4" /></button>
+              </div>
+              {c.remedio && (
+                <div className="mt-3 space-y-2 rounded-2xl bg-muted p-3 text-sm">
+                  {c.precios.length === 0
+                    ? <p>Anota cuánto cuesta en cada farmacia (Dr. Simi, la del barrio, la farmacia comunal). Así te muestro dónde sale más barato.</p>
+                    : [...c.precios].sort((x, y) => x.monto - y.monto).map((x) => (
+                      <p key={x.lugar} className="flex justify-between"><span>{x.lugar}{b && x.lugar === b.lugar && ah > 0 ? " · más barato" : ""}</span><b>{clp(x.monto)}</b></p>
+                    ))}
+                  {ah > 0 && <p className="font-semibold text-primary">Comprando en {b?.lugar} te ahorras {clp(ah)}. Esa diferencia puede ir a tu frasco.</p>}
+                  <p className="text-xs text-muted-foreground">Pregunta en la farmacia por el bioequivalente (sello amarillo) y por los precios de la farmacia comunal o del convenio de tu salud. Nunca cambies un remedio sin preguntarle al médico o al químico farmacéutico.</p>
+                  {precioFor === c.id ? (
+                    <div className="space-y-2 pt-1">
+                      <input className={field} placeholder="Farmacia (ej: Dr. Simi)" value={lugar} onChange={(e) => setLugar(e.target.value)} />
+                      <input className={field} inputMode="numeric" placeholder="Precio que viste" value={precio} onChange={(e) => setPrecio(e.target.value)} />
+                      <button onClick={() => addPrecio(c.id)} className="w-full rounded-full bg-primary py-2.5 font-bold text-primary-foreground">Guardar precio</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setPrecioFor(c.id); setLugar(""); setPrecio(""); }} className="flex items-center gap-1 font-bold text-primary"><Plus className="h-4 w-4" /> Anotar un precio</button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {adding ? (
+        <div className="animate-rise space-y-3 rounded-3xl bg-card p-5 shadow-soft">
+          <p className="font-bold">¿Qué viene sí o sí?</p>
+          <input className={field} placeholder="Ej: remedios de la mamá" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+          <select className={field} value={dia} onChange={(e) => setDia(Number(e.target.value))} aria-label="Día">
+            {DIAS.map((d, i) => <option key={d} value={i}>Cada {d}</option>)}
+          </select>
+          <input className={field} inputMode="numeric" placeholder="Cuánto cuesta aprox." value={monto} onChange={(e) => setMonto(e.target.value)} />
+          <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={remedio} onChange={(e) => setRemedio(e.target.checked)} className="h-5 w-5 accent-primary" /> Es un remedio (quiero comparar farmacias)</label>
+          <button onClick={add} className="w-full rounded-full bg-primary py-3.5 font-bold text-primary-foreground">Guardar</button>
+          <button onClick={() => setAdding(false)} className="w-full text-sm font-bold text-muted-foreground underline">Cancelar</button>
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)} className="flex w-full items-center justify-center gap-2 rounded-full border-2 border-primary py-3.5 font-bold text-primary"><Plus className="h-5 w-5" /> Anotar algo que viene</button>
+      )}
+
+      <div className="space-y-3 rounded-3xl bg-card p-5 shadow-soft">
+        <p className="font-bold">¿De qué viene tu plata extra?</p>
+        <div className="grid gap-2">
+          {(Object.keys(PERFILES) as PerfilId[]).map((id) => (
+            <button key={id} onClick={() => onPerfil({ id, valor: PERFILES[id].valorInicial })}
+              className={`rounded-2xl border-2 p-3 text-left font-semibold transition ${perfil.id === id ? "border-primary bg-accent text-accent-foreground" : "border-border"}`}>{PERFILES[id].label}</button>
+          ))}
+        </div>
+        <label className="block text-sm font-semibold">¿Cuánto te queda libre por cada {perfil.unidad}?
+          <input className={`${field} mt-1`} inputMode="numeric" value={perfil.valor.toLocaleString("es-CL")}
+            onChange={(e) => onPerfil({ id: perfil.id, valor: num(e.target.value) })} />
+        </label>
+        <p className="text-xs text-muted-foreground">Mi aire y tu camino se cuentan en {perfil.plural}, con lo que tú anotes.</p>
+      </div>
     </section>
   );
 }
