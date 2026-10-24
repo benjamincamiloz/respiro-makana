@@ -890,6 +890,66 @@ function ClaraChat({ mood, cartola, onPause, onPayments, onStatement }: { mood: 
   );
 }
 
+type Producto = { slug: string; nombre: string; desde: number | null; farmacias: number };
+type Oferta = { farmacia: string; precio: number; normal: number | null; captura: string };
+type Detalle = { nombre: string; bioequivalente: boolean; receta: boolean; ofertas: Oferta[] };
+
+function PreciosHoy({ farmaco, onAnotar }: { farmaco: string; onAnotar: (lugar: string, monto: number) => void }) {
+  const [estado, setEstado] = useState<"idle" | "cargando" | "error">("idle");
+  const [productos, setProductos] = useState<Producto[] | null>(null);
+  const [detalle, setDetalle] = useState<Detalle | null>(null);
+  const [anotado, setAnotado] = useState<string | null>(null);
+  const get = async (qs: string) => {
+    setEstado("cargando");
+    try {
+      const r = await fetch(`/api/precios?${qs}`); const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      setEstado("idle"); return j;
+    } catch { setEstado("error"); return null; }
+  };
+  const buscar = async () => { setDetalle(null); const j = await get(`q=${encodeURIComponent(farmaco)}`); if (j) setProductos(j.productos as Producto[]); };
+  const abrir = async (slug: string) => { const j = await get(`slug=${encodeURIComponent(slug)}`); if (j) setDetalle(j as Detalle); };
+  const hora = (s: string) => s.slice(11, 16);
+  return (
+    <div className="space-y-2">
+      {!productos && (
+        <button onClick={buscar} disabled={estado === "cargando"} className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-2.5 font-bold text-primary-foreground disabled:opacity-70">
+          {estado === "cargando" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pill className="h-4 w-4" />} Ver precios de hoy
+        </button>
+      )}
+      {estado === "error" && <p className="text-xs font-semibold text-warm">No pude traer los precios ahora. Intenta de nuevo en un rato.</p>}
+      {productos && !detalle && (
+        <div className="space-y-2 rounded-2xl bg-card p-3">
+          <p className="text-xs font-bold">¿Cuál es el de tu receta? Fíjate en los mg y la cantidad.</p>
+          {productos.length === 0 && <p className="text-xs text-muted-foreground">No encontré “{farmaco}”. Prueba con el nombre que aparece en la receta.</p>}
+          {productos.map((p) => (
+            <button key={p.slug} onClick={() => abrir(p.slug)} className="flex w-full items-center justify-between gap-2 rounded-xl border-2 border-border px-3 py-2 text-left text-xs hover:border-primary">
+              <span>{p.nombre}</span>{p.desde !== null && <b className="shrink-0">desde {clp(p.desde)}</b>}
+            </button>
+          ))}
+          {estado === "cargando" && <Loader2 className="mx-auto h-4 w-4 animate-spin" />}
+        </div>
+      )}
+      {detalle && (
+        <div className="space-y-2 rounded-2xl bg-card p-3 text-xs">
+          <p className="font-bold">{detalle.nombre}</p>
+          {detalle.bioequivalente && <p className="font-semibold text-primary">Es bioequivalente.</p>}
+          {detalle.ofertas.length === 0 && <p className="text-muted-foreground">Hoy no aparece con stock en ninguna farmacia.</p>}
+          {detalle.ofertas.map((o, i) => (
+            <div key={o.farmacia} className="flex items-center justify-between gap-2">
+              <span>{o.farmacia}{i === 0 ? " · más barato hoy" : ""}{o.normal && o.normal > o.precio ? " · en oferta" : ""}</span>
+              <span className="flex items-center gap-2"><b>{clp(o.precio)}</b>
+                <button onClick={() => { onAnotar(o.farmacia, o.precio); setAnotado(o.farmacia); }} className="font-bold text-primary underline">{anotado === o.farmacia ? "Anotado" : "Anotar"}</button></span>
+            </div>
+          ))}
+          {detalle.ofertas[0] && <p className="text-muted-foreground">Precios de BuscaFarma, revisados hoy a las {hora(detalle.ofertas[0].captura)}. Pueden cambiar en la farmacia.</p>}
+          <button onClick={() => setDetalle(null)} className="font-bold text-muted-foreground underline">Elegir otra presentación</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Semana({ mood, perfil, onPerfil, items, onItems }: { mood: MoodId | null; perfil: Perfil; onPerfil: (s: PerfilState) => void; items: Compromiso[]; onItems: (s: Compromiso[]) => void }) {
   const [hoy, setHoy] = useState<number | null>(null);
   useEffect(() => setHoy(new Date().getDay()), []);
@@ -955,13 +1015,10 @@ function Semana({ mood, perfil, onPerfil, items, onItems }: { mood: MoodId | nul
                     <input className="mt-1 w-full rounded-xl border-2 border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" defaultValue={c.farmaco ?? ""}
                       onBlur={(e) => onItems(items.map((x) => x.id === c.id ? { ...x, farmaco: e.target.value.trim().slice(0, 60) } : x))} />
                   </label>
-                  {c.farmaco && precioUrl(c.farmaco) && (
-                    <a href={precioUrl(c.farmaco)!} target="_blank" rel="noopener noreferrer"
-                      className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-2.5 font-bold text-primary-foreground">
-                      <ExternalLink className="h-4 w-4" /> Ver precios hoy
-                    </a>
+                  {c.farmaco && c.farmaco.length >= 3 && (
+                    <PreciosHoy key={c.farmaco} farmaco={c.farmaco}
+                      onAnotar={(l, m) => onItems(items.map((x) => x.id === c.id ? { ...x, precios: [...x.precios.filter((p) => p.lugar.toLowerCase() !== l.toLowerCase()), { lugar: l.slice(0, 40), monto: m }] } : x))} />
                   )}
-                  {c.farmaco && <p className="text-xs text-muted-foreground">Se abre BuscaFarma, que compara farmacias como Dr. Simi. Revisa que coincidan la dosis y la cantidad, y anota aquí el precio que te sirva.</p>}
                   {c.precios.length === 0
                     ? <p>Anota cuánto cuesta en cada farmacia (Dr. Simi, la del barrio, la farmacia comunal). Así te muestro dónde sale más barato.</p>
                     : [...c.precios].sort((x, y) => x.monto - y.monto).map((x) => (
