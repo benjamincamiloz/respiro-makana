@@ -11,7 +11,7 @@ async function bf(path: string, signal: AbortSignal) {
   for (let i = 0; i < 2 && res.status === 403; i++) { await new Promise((r) => setTimeout(r, 900)); res = await go(); }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    console.error(`BuscaFarma [${res.status}]: ${body.slice(0, 300)}`);
+    console.error(`BuscaFarma [${res.status}] ${path}: ${body.slice(0, 60)}`);
     throw new Error(`BuscaFarma respondió ${res.status}`);
   }
   return (await res.json()) as Raw;
