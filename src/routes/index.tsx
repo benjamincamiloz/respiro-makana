@@ -2,13 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { applyWeek, weekKey, type PisoState } from "@/lib/piso";
 import { APORTE, aportar, rescatar, type FrascoState } from "@/lib/frasco";
+import { perfilDe, PERFILES, unidades, type Perfil, type PerfilId, type PerfilState } from "@/lib/perfil";
+import { aviso, apartarHoy, ahorroPosible, masBarato, proximos, DIAS, type Compromiso } from "@/lib/semana";
 import { claraWelcome, statementName, statementVoiceSummary } from "@/lib/clara";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
 import {
   Camera, FileText, Wind, Home as HomeIcon, Play, Pause, Eye, EyeOff,
   ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, Pill, Shirt, MessageCircle, Send, Loader2, Volume2,
-  Smile, Meh, Frown, Angry, Heart, PiggyBank, MapPin, Flag, Check, RotateCcw,
+  CalendarDays, Plus, Trash2, Bell, Smile, Meh, Frown, Angry, Heart, PiggyBank, MapPin, Flag, Check, RotateCcw,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -26,11 +28,10 @@ export const Route = createFileRoute("/")({
 });
 
 const clp = (n: number) => "$" + Math.round(n).toLocaleString("es-CL");
-const SALE = 9000;
 
 type Cartola = { id: string; name: string; debt: number; min: number; interest: number };
 
-function calc(extra: number, c: Cartola) {
+function calc(extra: number, c: Cartola, SALE: number) {
   const r = extra / SALE; // ventas
   return { days: Math.round(r * 140 - r * r * 8), saved: Math.round(extra * (c.debt / c.min) * 0.45) };
 }
@@ -58,13 +59,24 @@ const REACTION: Record<MoodId, Reaction> = {
   agobiada: { title: "Primero respira", text: "Antes de mirar números, tomemos 60 segundos juntos. El resto espera.", action: "Respirar 60 segundos", kind: "sos" },
 };
 
-type Screen = "animo" | "inicio" | "medidor" | "frasco" | "camino" | "clara";
+type Screen = "animo" | "inicio" | "medidor" | "frasco" | "camino" | "semana" | "clara";
 
 function App() {
   const [screen, setScreen] = useState<Screen>("animo");
   const [mood, setMood] = useState<MoodId | null>(null);
   const [cartola, setCartola] = useState<Cartola | null>(null);
   const [sos, setSos] = useState(false);
+  const [perfilState, setPerfilState] = useState<PerfilState | null>(null);
+  const [items, setItems] = useState<Compromiso[]>([]);
+  useEffect(() => {
+    try {
+      const a = localStorage.getItem("respiro-perfil"); if (a) setPerfilState(JSON.parse(a) as PerfilState);
+      const b = localStorage.getItem("respiro-semana"); if (b) setItems(JSON.parse(b) as Compromiso[]);
+    } catch { /* sin datos guardados */ }
+  }, []);
+  const perfil = perfilDe(perfilState);
+  const savePerfil = (s: PerfilState) => { setPerfilState(s); try { localStorage.setItem("respiro-perfil", JSON.stringify(s)); } catch { /* */ } };
+  const saveItems = (s: Compromiso[]) => { setItems(s); try { localStorage.setItem("respiro-semana", JSON.stringify(s)); } catch { /* */ } };
   const load = (c: Cartola) => { setCartola(c); setScreen("medidor"); };
 
   return (
@@ -84,15 +96,17 @@ function App() {
         {screen === "animo" ? (
           <Animo onPick={(m) => { setMood(m); setScreen("inicio"); }} />
         ) : screen === "inicio" ? (
-          <Inicio mood={mood} onChangeMood={() => setScreen("animo")} onLoad={load} onOpenSos={() => setSos(true)} onClara={() => setScreen("clara")} />
+          <Inicio mood={mood} onChangeMood={() => setScreen("animo")} onLoad={load} onOpenSos={() => setSos(true)} onClara={() => setScreen("clara")} items={items} onSemana={() => setScreen("semana")} />
         ) : screen === "clara" ? (
           <ClaraChat mood={mood} cartola={cartola} onPause={() => setSos(true)} onPayments={() => setScreen("medidor")} onStatement={() => setScreen("inicio")} />
         ) : screen === "frasco" ? (
           <Frasco mood={mood} />
+        ) : screen === "semana" ? (
+          <Semana mood={mood} perfil={perfil} onPerfil={savePerfil} items={items} onItems={saveItems} />
         ) : screen === "camino" ? (
-          <Camino cartola={cartola} mood={mood} goInicio={() => setScreen("inicio")} />
+          <Camino p={perfil} cartola={cartola} mood={mood} goInicio={() => setScreen("inicio")} />
         ) : (
-          <Medidor cartola={cartola} mood={mood} goInicio={() => setScreen("inicio")} />
+          <Medidor p={perfil} cartola={cartola} mood={mood} goInicio={() => setScreen("inicio")} />
         )}
       </main>
 
@@ -108,11 +122,12 @@ function App() {
               { id: "inicio" as const, label: "Inicio", icon: HomeIcon },
               { id: "medidor" as const, label: "Mi aire", icon: Wind },
               { id: "frasco" as const, label: "Frasco", icon: PiggyBank },
+              { id: "semana" as const, label: "Mi semana", icon: CalendarDays },
               { id: "camino" as const, label: "Camino", icon: MapPin },
               { id: "clara" as const, label: "Clara", icon: MessageCircle },
             ].map((t) => (
               <button key={t.id} onClick={() => setScreen(t.id)}
-                className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-xs font-bold transition ${screen === t.id ? "text-primary" : "text-muted-foreground"}`}>
+                className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-bold transition ${screen === t.id ? "text-primary" : "text-muted-foreground"}`}>
                 <t.icon className="h-6 w-6" /> {t.label}
               </button>
             ))}
@@ -125,7 +140,10 @@ function App() {
   );
 }
 
-function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara }: { mood: MoodId | null; onChangeMood: () => void; onLoad: (c: Cartola) => void; onOpenSos: () => void; onClara: () => void }) {
+function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara, items, onSemana }: { mood: MoodId | null; onChangeMood: () => void; onLoad: (c: Cartola) => void; onOpenSos: () => void; onClara: () => void; items: Compromiso[]; onSemana: () => void }) {
+  const [hoy, setHoy] = useState<number | null>(null);
+  useEffect(() => setHoy(new Date().getDay()), []);
+  const av = hoy === null ? null : aviso(items, hoy);
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pin, setPin] = useState("");
@@ -182,6 +200,12 @@ function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara }: { mood: Mood
             <button onClick={onClara} className="mt-3 w-full rounded-full bg-primary py-3 font-bold text-primary-foreground transition active:scale-95">{r.action}</button>
           )}
         </div>
+      )}
+      {av && mood !== "agobiada" && (
+        <button onClick={onSemana} className="animate-rise flex w-full items-start gap-3 rounded-3xl bg-calm p-4 text-left text-calm-foreground">
+          <Bell className="mt-0.5 h-6 w-6 shrink-0" />
+          <span className="text-sm font-semibold">{av} <span className="underline">Ver mi semana</span></span>
+        </button>
       )}
       <p className="text-center text-muted-foreground">Sube tu cartola y yo me encargo de leerla. Tú solo verás lo que te da aire.</p>
 
@@ -246,7 +270,8 @@ function Animo({ onPick }: { onPick: (m: MoodId) => void }) {
 
 type Ventas = "bajas" | "normales" | "buenas";
 
-function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: MoodId | null; goInicio: () => void }) {
+function Medidor({ p, cartola, mood, goInicio }: { p: Perfil; cartola: Cartola | null; mood: MoodId | null; goInicio: () => void }) {
+  const SALE = p.valor;
   const [ventas, setVentas] = useState<Ventas | null>(null);
   const [extra, setExtra] = useState(2 * SALE);
   const [detail, setDetail] = useState(false);
@@ -270,7 +295,7 @@ function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: M
   const c = cartola;
   const piso = pisoState?.piso ?? 0;
   const maxExtra = piso + (ventas === "buenas" ? 3 : 2);
-  const { days, saved } = calc(extra, c);
+  const { days, saved } = calc(extra, c, SALE);
   const sales = Math.round(extra / SALE);
   const record = (stepVentas: number) => {
     const { state, pisoUp } = applyWeek(pisoState, weekKey(), stepVentas);
@@ -298,7 +323,7 @@ function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: M
       <VoiceNote mood={mood} text={statementVoiceSummary(mood, c)} />
 
       <div className="rounded-3xl bg-card p-5 shadow-soft">
-        <p className="font-extrabold">¿Cómo estuvieron tus ventas de catálogo esta semana?</p>
+        <p className="font-extrabold">{p.id === "catalogo" ? "¿Cómo estuvieron tus ventas de catálogo esta semana?" : p.id === "app" ? "¿Cómo estuvo tu semana de viajes?" : "¿Cómo estuvo tu semana de pedidos?"}</p>
         <div className="mt-3 grid grid-cols-3 gap-2">
           {(["bajas", "normales", "buenas"] as const).map((v) => (
             <button key={v} onClick={() => pick(v)}
@@ -317,7 +342,7 @@ function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: M
       {piso > 0 && ventas !== "bajas" && (
         <div className="flex items-center gap-3 rounded-3xl bg-calm p-4 text-calm-foreground">
           <Wind className="h-6 w-6 shrink-0" />
-          <p className="text-sm font-semibold">Tu piso de aire: pagas <b>{clp(c.min + piso * SALE)}</b> de base, con {piso} {piso === 1 ? "venta" : "ventas"} ya sumadas. Ya no tienes que pensarlo.</p>
+          <p className="text-sm font-semibold">Tu piso de aire: pagas <b>{clp(c.min + piso * SALE)}</b> de base, con {unidades(piso, p)} ya {piso === 1 ? "sumado" : "sumados"}. Ya no tienes que pensarlo.</p>
         </div>
       )}
 
@@ -343,15 +368,15 @@ function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: M
           <p className="text-lg">Pagas <b>{clp(c.min + extra)}</b> este mes</p>
           <p className="text-muted-foreground">{saved > 0 ? <>Te ahorras <b className="text-primary">{clp(saved)}</b> en intereses</> : <>Le regalas {clp(c.interest)} de interés al banco</>}</p>
           <input type="range" min={piso * SALE} max={maxExtra * SALE} step={SALE} value={Math.min(Math.max(extra, piso * SALE), maxExtra * SALE)}
-            onChange={(e) => setExtra(Number(e.target.value))} aria-label="Ventas extra destinadas al pago"
+            onChange={(e) => setExtra(Number(e.target.value))} aria-label="Extra destinado al pago"
             className="mt-6 h-3 w-full cursor-pointer appearance-none rounded-full bg-muted accent-primary" />
           <div className="mt-1 flex justify-between text-xs font-semibold text-muted-foreground">
-            {Array.from({ length: maxExtra - piso + 1 }, (_, i) => <span key={i}>{i === 0 ? (piso > 0 ? "Tu piso" : "Mínimo") : `+${i} venta${i > 1 ? "s" : ""}`}</span>)}
+            {Array.from({ length: maxExtra - piso + 1 }, (_, i) => <span key={i}>{i === 0 ? (piso > 0 ? "Tu piso" : "Mínimo") : `+${unidades(i, p)}`}</span>)}
           </div>
           {extra > 0 && (
             <div className="mt-5 flex gap-3 rounded-3xl bg-warm p-4 text-left text-warm-foreground">
               <ShoppingBag className="mt-1 h-6 w-6 shrink-0" />
-              <p className="font-semibold">Esos {clp(extra)} extra son solo <b>{sales} {sales === 1 ? "venta" : "ventas"}</b> de cremas o perfumes de tu catálogo. ¿A quién le ofrecemos hoy?</p>
+              <p className="font-semibold">Esos {clp(extra)} extra son solo <b>{unidades(sales, p)}</b> ({p.ejemplo}). Solo si te queda libre después de lo de la casa.</p>
             </div>
           )}
         </div>
@@ -474,7 +499,8 @@ function Frasco({ mood }: { mood: MoodId | null }) {
 
 const PARADAS = 10;
 
-function Camino({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: MoodId | null; goInicio: () => void }) {
+function Camino({ p, cartola, mood, goInicio }: { p: Perfil; cartola: Cartola | null; mood: MoodId | null; goInicio: () => void }) {
+  const SALE = p.valor;
   const [extra, setExtra] = useState(0);
   useEffect(() => {
     try {
@@ -512,7 +538,7 @@ function Camino({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: Mo
         <Flag className="mt-1 h-7 w-7 shrink-0" />
         <p className="font-semibold">{mood === "agobiada"
           ? "Este es tu camino de salida. Hoy solo míralo: hay una salida y vas avanzando."
-          : "Tu camino de salida: la deuda grande se vuelve un viaje con paradas, y cada venta extra te acerca a la siguiente."}</p>
+          : "Tu camino de salida: la deuda grande se vuelve un viaje con paradas, y cada {p.unidad} extra te acerca a la siguiente."}</p>
       </div>
 
       <div className="rounded-3xl bg-card p-6 shadow-soft">
@@ -544,19 +570,19 @@ function Camino({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: Mo
         <p className="mt-6 text-center text-muted-foreground">
           {done >= PARADAS
             ? "La tarjeta quedó atrás. Este camino lo hiciste tú, de a poquito."
-            : <>Cada parada son <b>{clp(tramo)}</b> pagados sobre el mínimo. Te faltan <b>{ventasRestantes} ventas de catálogo</b> para llegar al final.</>}
+            : <>Cada parada son <b>{clp(tramo)}</b> pagados sobre el mínimo. Te faltan <b>{unidades(ventasRestantes, p)}</b> para llegar al final.</>}
         </p>
       </div>
 
       {done < PARADAS && (
         <div className="flex gap-3 rounded-3xl bg-warm p-4 text-left text-warm-foreground">
           <ShoppingBag className="mt-1 h-6 w-6 shrink-0" />
-          <p className="font-semibold">Cada venta extra que sumes en “Mi aire” te acerca una parada. Sin apuro: el camino no se borra.</p>
+          <p className="font-semibold">Cada {p.unidad} extra que sumes en “Mi aire” te acerca una parada. Sin apuro: el camino no se borra.</p>
         </div>
       )}
 
       <div className="flex justify-center gap-3 text-xs">
-        <button onClick={() => mark(extra + SALE)} className="font-semibold text-muted-foreground underline underline-offset-2">Marcar una venta extra pagada</button>
+        <button onClick={() => mark(extra + SALE)} className="font-semibold text-muted-foreground underline underline-offset-2">Marcar {p.unidad === "venta" ? "una venta extra pagada" : `un ${p.unidad} extra pagado`}</button>
         {extra > 0 && (
           <button onClick={() => mark(0)} className="flex items-center gap-1 font-semibold text-muted-foreground underline underline-offset-2"><RotateCcw className="h-3 w-3" /> Empezar de nuevo</button>
         )}
@@ -799,6 +825,124 @@ function ClaraChat({ mood, cartola, onPause, onPayments, onStatement }: { mood: 
           placeholder="Escríbele a Clara…" className="max-h-32 flex-1 resize-none bg-transparent px-3 py-2 outline-none" />
         <Button type="submit" disabled={busy || !text.trim()} aria-label="Enviar" size="icon" className="h-11 w-11 shrink-0 rounded-full"><Send className="h-5 w-5" /></Button>
       </form>
+    </section>
+  );
+}
+
+function Semana({ mood, perfil, onPerfil, items, onItems }: { mood: MoodId | null; perfil: Perfil; onPerfil: (s: PerfilState) => void; items: Compromiso[]; onItems: (s: Compromiso[]) => void }) {
+  const [hoy, setHoy] = useState<number | null>(null);
+  useEffect(() => setHoy(new Date().getDay()), []);
+  const [adding, setAdding] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [dia, setDia] = useState(3);
+  const [monto, setMonto] = useState("");
+  const [remedio, setRemedio] = useState(true);
+  const [precioFor, setPrecioFor] = useState<string | null>(null);
+  const [lugar, setLugar] = useState("");
+  const [precio, setPrecio] = useState("");
+  const num = (v: string) => Number(v.replace(/\D/g, "")) || 0;
+  const lista = hoy === null ? [] : proximos(items, hoy);
+  const apartar = hoy === null ? 0 : apartarHoy(items, hoy);
+  const av = hoy === null ? null : aviso(items, hoy);
+  const add = () => {
+    if (!nombre.trim() || num(monto) <= 0) return;
+    onItems([...items, { id: crypto.randomUUID(), nombre: nombre.trim().slice(0, 60), dia, monto: num(monto), remedio, precios: [] }]);
+    setNombre(""); setMonto(""); setAdding(false);
+  };
+  const addPrecio = (id: string) => {
+    if (!lugar.trim() || num(precio) <= 0) return;
+    onItems(items.map((c) => c.id === id ? { ...c, precios: [...c.precios.filter((x) => x.lugar.toLowerCase() !== lugar.trim().toLowerCase()), { lugar: lugar.trim().slice(0, 40), monto: num(precio) }] } : c));
+    setLugar(""); setPrecio(""); setPrecioFor(null);
+  };
+  const field = "w-full rounded-2xl border-2 border-border bg-background px-4 py-3 outline-none focus:border-primary";
+  return (
+    <section className="animate-rise space-y-5">
+      <div className="flex items-start gap-3 rounded-3xl bg-accent p-5 text-accent-foreground">
+        <CalendarDays className="mt-1 h-7 w-7 shrink-0" />
+        <p className="font-semibold">{mood === "agobiada"
+          ? "Aquí miramos lo que viene, sin apuro. Hoy basta con saber qué día toca cada cosa."
+          : "Adelantémonos: anota lo que sí o sí viene esta semana y te aviso antes, para que la plata no se vaya en otra cosa."}</p>
+      </div>
+
+      {av && <p className="flex items-start gap-3 rounded-3xl bg-calm p-4 text-sm font-semibold text-calm-foreground"><Bell className="mt-0.5 h-5 w-5 shrink-0" /> {av}</p>}
+      {apartar > 0 && (
+        <div className="rounded-3xl bg-card p-5 text-center shadow-soft">
+          <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Para los próximos 3 días</p>
+          <p className="mt-1 font-display text-4xl text-primary">{clp(apartar)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">Si hoy entra plata, separa esto primero. Es {unidades(Math.ceil(apartar / perfil.valor), perfil)} aprox.</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {lista.length === 0 && !adding && <p className="rounded-3xl bg-card p-5 text-center text-muted-foreground shadow-soft">Aún no anotas nada. Empieza por lo que más te preocupa, como los remedios de tu mamá.</p>}
+        {lista.map((c) => {
+          const b = c.remedio ? masBarato(c.precios) : null;
+          const ah = ahorroPosible(c.precios);
+          return (
+            <div key={c.id} className="rounded-3xl bg-card p-5 shadow-soft">
+              <div className="flex items-start gap-3">
+                {c.remedio ? <Pill className="mt-0.5 h-6 w-6 shrink-0 text-primary" /> : <CalendarDays className="mt-0.5 h-6 w-6 shrink-0 text-primary" />}
+                <div className="flex-1">
+                  <p className="font-bold">{c.nombre}</p>
+                  <p className="text-sm text-muted-foreground">Cada {DIAS[c.dia]} · {c.en === 0 ? "hoy" : c.en === 1 ? "mañana" : `en ${c.en} días`} · {clp(b?.monto ?? c.monto)}</p>
+                </div>
+                <button aria-label={`Quitar ${c.nombre}`} onClick={() => onItems(items.filter((x) => x.id !== c.id))} className="text-muted-foreground"><Trash2 className="h-4 w-4" /></button>
+              </div>
+              {c.remedio && (
+                <div className="mt-3 space-y-2 rounded-2xl bg-muted p-3 text-sm">
+                  {c.precios.length === 0
+                    ? <p>Anota cuánto cuesta en cada farmacia (Dr. Simi, la del barrio, la farmacia comunal). Así te muestro dónde sale más barato.</p>
+                    : [...c.precios].sort((x, y) => x.monto - y.monto).map((x) => (
+                      <p key={x.lugar} className="flex justify-between"><span>{x.lugar}{b && x.lugar === b.lugar && ah > 0 ? " · más barato" : ""}</span><b>{clp(x.monto)}</b></p>
+                    ))}
+                  {ah > 0 && <p className="font-semibold text-primary">Comprando en {b?.lugar} te ahorras {clp(ah)}. Esa diferencia puede ir a tu frasco.</p>}
+                  <p className="text-xs text-muted-foreground">Pregunta en la farmacia por el bioequivalente (sello amarillo) y por los precios de la farmacia comunal o del convenio de tu salud. Nunca cambies un remedio sin preguntarle al médico o al químico farmacéutico.</p>
+                  {precioFor === c.id ? (
+                    <div className="space-y-2 pt-1">
+                      <input className={field} placeholder="Farmacia (ej: Dr. Simi)" value={lugar} onChange={(e) => setLugar(e.target.value)} />
+                      <input className={field} inputMode="numeric" placeholder="Precio que viste" value={precio} onChange={(e) => setPrecio(e.target.value)} />
+                      <button onClick={() => addPrecio(c.id)} className="w-full rounded-full bg-primary py-2.5 font-bold text-primary-foreground">Guardar precio</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setPrecioFor(c.id); setLugar(""); setPrecio(""); }} className="flex items-center gap-1 font-bold text-primary"><Plus className="h-4 w-4" /> Anotar un precio</button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {adding ? (
+        <div className="animate-rise space-y-3 rounded-3xl bg-card p-5 shadow-soft">
+          <p className="font-bold">¿Qué viene sí o sí?</p>
+          <input className={field} placeholder="Ej: remedios de la mamá" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+          <select className={field} value={dia} onChange={(e) => setDia(Number(e.target.value))} aria-label="Día">
+            {DIAS.map((d, i) => <option key={d} value={i}>Cada {d}</option>)}
+          </select>
+          <input className={field} inputMode="numeric" placeholder="Cuánto cuesta aprox." value={monto} onChange={(e) => setMonto(e.target.value)} />
+          <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={remedio} onChange={(e) => setRemedio(e.target.checked)} className="h-5 w-5 accent-primary" /> Es un remedio (quiero comparar farmacias)</label>
+          <button onClick={add} className="w-full rounded-full bg-primary py-3.5 font-bold text-primary-foreground">Guardar</button>
+          <button onClick={() => setAdding(false)} className="w-full text-sm font-bold text-muted-foreground underline">Cancelar</button>
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)} className="flex w-full items-center justify-center gap-2 rounded-full border-2 border-primary py-3.5 font-bold text-primary"><Plus className="h-5 w-5" /> Anotar algo que viene</button>
+      )}
+
+      <div className="space-y-3 rounded-3xl bg-card p-5 shadow-soft">
+        <p className="font-bold">¿De qué viene tu plata extra?</p>
+        <div className="grid gap-2">
+          {(Object.keys(PERFILES) as PerfilId[]).map((id) => (
+            <button key={id} onClick={() => onPerfil({ id, valor: PERFILES[id].valorInicial })}
+              className={`rounded-2xl border-2 p-3 text-left font-semibold transition ${perfil.id === id ? "border-primary bg-accent text-accent-foreground" : "border-border"}`}>{PERFILES[id].label}</button>
+          ))}
+        </div>
+        <label className="block text-sm font-semibold">¿Cuánto te queda libre por cada {perfil.unidad}?
+          <input className={`${field} mt-1`} inputMode="numeric" value={perfil.valor.toLocaleString("es-CL")}
+            onChange={(e) => onPerfil({ id: perfil.id, valor: num(e.target.value) })} />
+        </label>
+        <p className="text-xs text-muted-foreground">Mi aire y tu camino se cuentan en {perfil.plural}, con lo que tú anotes.</p>
+      </div>
     </section>
   );
 }
