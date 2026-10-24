@@ -9,3 +9,7 @@
 - [x] Colores e interfaz basados en makana.cl
 - [x] Plan de salida del bucle: el paso que se vuelve piso (2 semanas seguidas pagando sobre el mínimo suben el pago de base en 1 venta)
 - [x] Clara inspirada en Alma: conversación que conecta emoción, finanzas y herramientas de Respiro, sin simular afiliación.
+- [x] Mi semana: anticipar gastos fijos (remedios del miércoles), cuánto apartar y aviso en Inicio.
+- [x] Comparar precios de farmacia anotados por ella (sin ofertas inventadas).
+- [x] Perfiles de trabajo (catálogo / app / pedidos) con valor por unidad editable.
+- [ ] Ofertas de farmacia en vivo: requiere una fuente pública de precios confiable.
