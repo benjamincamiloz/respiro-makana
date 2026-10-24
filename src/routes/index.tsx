@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { applyWeek, weekKey, type PisoState } from "@/lib/piso";
 import { APORTE, aportar, rescatar, type FrascoState } from "@/lib/frasco";
 import { perfilDe, PERFILES, unidades, type Perfil, type PerfilId, type PerfilState } from "@/lib/perfil";
-import { precioUrl, aviso, apartarHoy, ahorroPosible, masBarato, proximos, DIAS, type Compromiso } from "@/lib/semana";
+import { aviso, apartarHoy, ahorroPosible, masBarato, proximos, DIAS, type Compromiso } from "@/lib/semana";
 import { claraWelcome, statementName, statementVoiceSummary } from "@/lib/clara";
 import { ALERTAS_INICIAL, alertaDeHoy, fecha, type AlertasState } from "@/lib/alertas";
 import { Button } from "@/components/ui/button";
