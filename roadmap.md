@@ -14,3 +14,6 @@
 - [x] Perfiles de trabajo (catálogo / app / pedidos) con valor por unidad editable.
 - [x] Botón "Ver precios hoy" por remedio (abre BuscaFarma).
 - [ ] Aviso automático de ofertas: requiere permiso o acuerdo con una fuente de precios.
+
+- [x] Precios reales de remedios desde BuscaFarma en Mi semana
+- [ ] Aviso automático de ofertas de remedios (siguiente paso)
