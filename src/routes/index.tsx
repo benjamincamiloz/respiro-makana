@@ -2,13 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { applyWeek, weekKey, type PisoState } from "@/lib/piso";
 import { APORTE, aportar, rescatar, type FrascoState } from "@/lib/frasco";
+import { perfilDe, PERFILES, unidades, type Perfil, type PerfilId, type PerfilState } from "@/lib/perfil";
+import { aviso, apartarHoy, ahorroPosible, masBarato, proximos, DIAS, type Compromiso } from "@/lib/semana";
 import { claraWelcome, statementName, statementVoiceSummary } from "@/lib/clara";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
 import {
   Camera, FileText, Wind, Home as HomeIcon, Play, Pause, Eye, EyeOff,
   ShoppingBag, X, ArrowRight, Mic, Moon, ShieldCheck, User, Pill, Shirt, MessageCircle, Send, Loader2, Volume2,
-  Smile, Meh, Frown, Angry, Heart, PiggyBank, MapPin, Flag, Check, RotateCcw,
+  CalendarDays, Plus, Trash2, Bell, Smile, Meh, Frown, Angry, Heart, PiggyBank, MapPin, Flag, Check, RotateCcw,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -26,11 +28,10 @@ export const Route = createFileRoute("/")({
 });
 
 const clp = (n: number) => "$" + Math.round(n).toLocaleString("es-CL");
-const SALE = 9000;
 
 type Cartola = { id: string; name: string; debt: number; min: number; interest: number };
 
-function calc(extra: number, c: Cartola) {
+function calc(extra: number, c: Cartola, SALE: number) {
   const r = extra / SALE; // ventas
   return { days: Math.round(r * 140 - r * r * 8), saved: Math.round(extra * (c.debt / c.min) * 0.45) };
 }
@@ -58,13 +59,24 @@ const REACTION: Record<MoodId, Reaction> = {
   agobiada: { title: "Primero respira", text: "Antes de mirar números, tomemos 60 segundos juntos. El resto espera.", action: "Respirar 60 segundos", kind: "sos" },
 };
 
-type Screen = "animo" | "inicio" | "medidor" | "frasco" | "camino" | "clara";
+type Screen = "animo" | "inicio" | "medidor" | "frasco" | "camino" | "semana" | "clara";
 
 function App() {
   const [screen, setScreen] = useState<Screen>("animo");
   const [mood, setMood] = useState<MoodId | null>(null);
   const [cartola, setCartola] = useState<Cartola | null>(null);
   const [sos, setSos] = useState(false);
+  const [perfilState, setPerfilState] = useState<PerfilState | null>(null);
+  const [items, setItems] = useState<Compromiso[]>([]);
+  useEffect(() => {
+    try {
+      const a = localStorage.getItem("respiro-perfil"); if (a) setPerfilState(JSON.parse(a) as PerfilState);
+      const b = localStorage.getItem("respiro-semana"); if (b) setItems(JSON.parse(b) as Compromiso[]);
+    } catch { /* sin datos guardados */ }
+  }, []);
+  const perfil = perfilDe(perfilState);
+  const savePerfil = (s: PerfilState) => { setPerfilState(s); try { localStorage.setItem("respiro-perfil", JSON.stringify(s)); } catch { /* */ } };
+  const saveItems = (s: Compromiso[]) => { setItems(s); try { localStorage.setItem("respiro-semana", JSON.stringify(s)); } catch { /* */ } };
   const load = (c: Cartola) => { setCartola(c); setScreen("medidor"); };
 
   return (
@@ -84,15 +96,17 @@ function App() {
         {screen === "animo" ? (
           <Animo onPick={(m) => { setMood(m); setScreen("inicio"); }} />
         ) : screen === "inicio" ? (
-          <Inicio mood={mood} onChangeMood={() => setScreen("animo")} onLoad={load} onOpenSos={() => setSos(true)} onClara={() => setScreen("clara")} />
+          <Inicio mood={mood} onChangeMood={() => setScreen("animo")} onLoad={load} onOpenSos={() => setSos(true)} onClara={() => setScreen("clara")} items={items} onSemana={() => setScreen("semana")} />
         ) : screen === "clara" ? (
           <ClaraChat mood={mood} cartola={cartola} onPause={() => setSos(true)} onPayments={() => setScreen("medidor")} onStatement={() => setScreen("inicio")} />
         ) : screen === "frasco" ? (
           <Frasco mood={mood} />
+        ) : screen === "semana" ? (
+          <Semana mood={mood} perfil={perfil} onPerfil={savePerfil} items={items} onItems={saveItems} />
         ) : screen === "camino" ? (
-          <Camino cartola={cartola} mood={mood} goInicio={() => setScreen("inicio")} />
+          <Camino p={perfil} cartola={cartola} mood={mood} goInicio={() => setScreen("inicio")} />
         ) : (
-          <Medidor cartola={cartola} mood={mood} goInicio={() => setScreen("inicio")} />
+          <Medidor p={perfil} cartola={cartola} mood={mood} goInicio={() => setScreen("inicio")} />
         )}
       </main>
 
@@ -108,11 +122,12 @@ function App() {
               { id: "inicio" as const, label: "Inicio", icon: HomeIcon },
               { id: "medidor" as const, label: "Mi aire", icon: Wind },
               { id: "frasco" as const, label: "Frasco", icon: PiggyBank },
+              { id: "semana" as const, label: "Mi semana", icon: CalendarDays },
               { id: "camino" as const, label: "Camino", icon: MapPin },
               { id: "clara" as const, label: "Clara", icon: MessageCircle },
             ].map((t) => (
               <button key={t.id} onClick={() => setScreen(t.id)}
-                className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-xs font-bold transition ${screen === t.id ? "text-primary" : "text-muted-foreground"}`}>
+                className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-bold transition ${screen === t.id ? "text-primary" : "text-muted-foreground"}`}>
                 <t.icon className="h-6 w-6" /> {t.label}
               </button>
             ))}
@@ -125,7 +140,10 @@ function App() {
   );
 }
 
-function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara }: { mood: MoodId | null; onChangeMood: () => void; onLoad: (c: Cartola) => void; onOpenSos: () => void; onClara: () => void }) {
+function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara, items, onSemana }: { mood: MoodId | null; onChangeMood: () => void; onLoad: (c: Cartola) => void; onOpenSos: () => void; onClara: () => void; items: Compromiso[]; onSemana: () => void }) {
+  const [hoy, setHoy] = useState<number | null>(null);
+  useEffect(() => setHoy(new Date().getDay()), []);
+  const av = hoy === null ? null : aviso(items, hoy);
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pin, setPin] = useState("");
@@ -182,6 +200,12 @@ function Inicio({ mood, onChangeMood, onLoad, onOpenSos, onClara }: { mood: Mood
             <button onClick={onClara} className="mt-3 w-full rounded-full bg-primary py-3 font-bold text-primary-foreground transition active:scale-95">{r.action}</button>
           )}
         </div>
+      )}
+      {av && mood !== "agobiada" && (
+        <button onClick={onSemana} className="animate-rise flex w-full items-start gap-3 rounded-3xl bg-calm p-4 text-left text-calm-foreground">
+          <Bell className="mt-0.5 h-6 w-6 shrink-0" />
+          <span className="text-sm font-semibold">{av} <span className="underline">Ver mi semana</span></span>
+        </button>
       )}
       <p className="text-center text-muted-foreground">Sube tu cartola y yo me encargo de leerla. Tú solo verás lo que te da aire.</p>
 
@@ -246,7 +270,8 @@ function Animo({ onPick }: { onPick: (m: MoodId) => void }) {
 
 type Ventas = "bajas" | "normales" | "buenas";
 
-function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: MoodId | null; goInicio: () => void }) {
+function Medidor({ p, cartola, mood, goInicio }: { p: Perfil; cartola: Cartola | null; mood: MoodId | null; goInicio: () => void }) {
+  const SALE = p.valor;
   const [ventas, setVentas] = useState<Ventas | null>(null);
   const [extra, setExtra] = useState(2 * SALE);
   const [detail, setDetail] = useState(false);
@@ -270,7 +295,7 @@ function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: M
   const c = cartola;
   const piso = pisoState?.piso ?? 0;
   const maxExtra = piso + (ventas === "buenas" ? 3 : 2);
-  const { days, saved } = calc(extra, c);
+  const { days, saved } = calc(extra, c, SALE);
   const sales = Math.round(extra / SALE);
   const record = (stepVentas: number) => {
     const { state, pisoUp } = applyWeek(pisoState, weekKey(), stepVentas);
@@ -298,7 +323,7 @@ function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: M
       <VoiceNote mood={mood} text={statementVoiceSummary(mood, c)} />
 
       <div className="rounded-3xl bg-card p-5 shadow-soft">
-        <p className="font-extrabold">¿Cómo estuvieron tus ventas de catálogo esta semana?</p>
+        <p className="font-extrabold">{p.id === "catalogo" ? "¿Cómo estuvieron tus ventas de catálogo esta semana?" : p.id === "app" ? "¿Cómo estuvo tu semana de viajes?" : "¿Cómo estuvo tu semana de pedidos?"}</p>
         <div className="mt-3 grid grid-cols-3 gap-2">
           {(["bajas", "normales", "buenas"] as const).map((v) => (
             <button key={v} onClick={() => pick(v)}
@@ -317,7 +342,7 @@ function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: M
       {piso > 0 && ventas !== "bajas" && (
         <div className="flex items-center gap-3 rounded-3xl bg-calm p-4 text-calm-foreground">
           <Wind className="h-6 w-6 shrink-0" />
-          <p className="text-sm font-semibold">Tu piso de aire: pagas <b>{clp(c.min + piso * SALE)}</b> de base, con {piso} {piso === 1 ? "venta" : "ventas"} ya sumadas. Ya no tienes que pensarlo.</p>
+          <p className="text-sm font-semibold">Tu piso de aire: pagas <b>{clp(c.min + piso * SALE)}</b> de base, con {unidades(piso, p)} ya {piso === 1 ? "sumado" : "sumados"}. Ya no tienes que pensarlo.</p>
         </div>
       )}
 
@@ -343,15 +368,15 @@ function Medidor({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: M
           <p className="text-lg">Pagas <b>{clp(c.min + extra)}</b> este mes</p>
           <p className="text-muted-foreground">{saved > 0 ? <>Te ahorras <b className="text-primary">{clp(saved)}</b> en intereses</> : <>Le regalas {clp(c.interest)} de interés al banco</>}</p>
           <input type="range" min={piso * SALE} max={maxExtra * SALE} step={SALE} value={Math.min(Math.max(extra, piso * SALE), maxExtra * SALE)}
-            onChange={(e) => setExtra(Number(e.target.value))} aria-label="Ventas extra destinadas al pago"
+            onChange={(e) => setExtra(Number(e.target.value))} aria-label="Extra destinado al pago"
             className="mt-6 h-3 w-full cursor-pointer appearance-none rounded-full bg-muted accent-primary" />
           <div className="mt-1 flex justify-between text-xs font-semibold text-muted-foreground">
-            {Array.from({ length: maxExtra - piso + 1 }, (_, i) => <span key={i}>{i === 0 ? (piso > 0 ? "Tu piso" : "Mínimo") : `+${i} venta${i > 1 ? "s" : ""}`}</span>)}
+            {Array.from({ length: maxExtra - piso + 1 }, (_, i) => <span key={i}>{i === 0 ? (piso > 0 ? "Tu piso" : "Mínimo") : `+${unidades(i, p)}`}</span>)}
           </div>
           {extra > 0 && (
             <div className="mt-5 flex gap-3 rounded-3xl bg-warm p-4 text-left text-warm-foreground">
               <ShoppingBag className="mt-1 h-6 w-6 shrink-0" />
-              <p className="font-semibold">Esos {clp(extra)} extra son solo <b>{sales} {sales === 1 ? "venta" : "ventas"}</b> de cremas o perfumes de tu catálogo. ¿A quién le ofrecemos hoy?</p>
+              <p className="font-semibold">Esos {clp(extra)} extra son solo <b>{unidades(sales, p)}</b> ({p.ejemplo}). Solo si te queda libre después de lo de la casa.</p>
             </div>
           )}
         </div>
@@ -474,7 +499,8 @@ function Frasco({ mood }: { mood: MoodId | null }) {
 
 const PARADAS = 10;
 
-function Camino({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: MoodId | null; goInicio: () => void }) {
+function Camino({ p, cartola, mood, goInicio }: { p: Perfil; cartola: Cartola | null; mood: MoodId | null; goInicio: () => void }) {
+  const SALE = p.valor;
   const [extra, setExtra] = useState(0);
   useEffect(() => {
     try {
@@ -512,7 +538,7 @@ function Camino({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: Mo
         <Flag className="mt-1 h-7 w-7 shrink-0" />
         <p className="font-semibold">{mood === "agobiada"
           ? "Este es tu camino de salida. Hoy solo míralo: hay una salida y vas avanzando."
-          : "Tu camino de salida: la deuda grande se vuelve un viaje con paradas, y cada venta extra te acerca a la siguiente."}</p>
+          : "Tu camino de salida: la deuda grande se vuelve un viaje con paradas, y cada {p.unidad} extra te acerca a la siguiente."}</p>
       </div>
 
       <div className="rounded-3xl bg-card p-6 shadow-soft">
@@ -544,19 +570,19 @@ function Camino({ cartola, mood, goInicio }: { cartola: Cartola | null; mood: Mo
         <p className="mt-6 text-center text-muted-foreground">
           {done >= PARADAS
             ? "La tarjeta quedó atrás. Este camino lo hiciste tú, de a poquito."
-            : <>Cada parada son <b>{clp(tramo)}</b> pagados sobre el mínimo. Te faltan <b>{ventasRestantes} ventas de catálogo</b> para llegar al final.</>}
+            : <>Cada parada son <b>{clp(tramo)}</b> pagados sobre el mínimo. Te faltan <b>{unidades(ventasRestantes, p)}</b> para llegar al final.</>}
         </p>
       </div>
 
       {done < PARADAS && (
         <div className="flex gap-3 rounded-3xl bg-warm p-4 text-left text-warm-foreground">
           <ShoppingBag className="mt-1 h-6 w-6 shrink-0" />
-          <p className="font-semibold">Cada venta extra que sumes en “Mi aire” te acerca una parada. Sin apuro: el camino no se borra.</p>
+          <p className="font-semibold">Cada {p.unidad} extra que sumes en “Mi aire” te acerca una parada. Sin apuro: el camino no se borra.</p>
         </div>
       )}
 
       <div className="flex justify-center gap-3 text-xs">
-        <button onClick={() => mark(extra + SALE)} className="font-semibold text-muted-foreground underline underline-offset-2">Marcar una venta extra pagada</button>
+        <button onClick={() => mark(extra + SALE)} className="font-semibold text-muted-foreground underline underline-offset-2">Marcar {p.unidad === "venta" ? "una" : "un"} {p.unidad} extra pagado</button>
         {extra > 0 && (
           <button onClick={() => mark(0)} className="flex items-center gap-1 font-semibold text-muted-foreground underline underline-offset-2"><RotateCcw className="h-3 w-3" /> Empezar de nuevo</button>
         )}
