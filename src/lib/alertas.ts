@@ -17,7 +17,7 @@ export type Alerta = { tipo: TipoAlerta; titulo: string; texto: string; pregunta
 export const fecha = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 function diasEntre(a: string, b: Date): number {
-  const [y, m, d] = a.split("-").map(Number);
+  const [y = 0, m = 1, d = 1] = a.split("-").map(Number);
   const x = new Date(y, m - 1, d);
   const z = new Date(b.getFullYear(), b.getMonth(), b.getDate());
   return Math.round((z.getTime() - x.getTime()) / 86400000);
